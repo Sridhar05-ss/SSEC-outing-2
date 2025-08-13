@@ -1,0 +1,61 @@
+// backend/easytime.js
+const express = require('express');
+const axios = require('axios');
+const router = express.Router();
+
+const EASYTIME_BASE = 'http://127.0.0.1:8081'; // Change to your EasyTime Pro server IP
+const CREDENTIALS = { username: 'admin', password: 'Admin@123' };
+
+// Function to get auth header (JWT or Token)
+async function getAuthHeader() {
+    try {
+        // Try JWT first
+        const jwtRes = await axios.post(`${EASYTIME_BASE}/api/jwt/create/`, CREDENTIALS);
+        console.log('✅ Using JWT Bearer token');
+        return `Bearer ${jwtRes.data.access}`;
+    } catch (err) {
+        console.warn('⚠ JWT failed, trying Token Auth...');
+        // Try Token Auth
+        const tokenRes = await axios.post(`${EASYTIME_BASE}/api-token-auth/`, CREDENTIALS);
+        console.log('✅ Using Token auth');
+        return `Token ${tokenRes.data.token}`;
+    }
+}
+
+// Add employee API
+router.post('/add-employee', async (req, res) => {
+    try {
+        const authHeader = await getAuthHeader();
+        const employeeData = req.body;
+
+        const response = await axios.post(
+            `${EASYTIME_BASE}/personnel/api/employees/`,
+            employeeData,
+            { headers: { Authorization: authHeader } }
+        );
+
+        res.json({ success: true, data: response.data });
+    } catch (err) {
+        console.error('❌ Error adding employee:', err.response?.data || err.message);
+        res.status(500).json({ error: err.response?.data || err.message });
+    }
+});
+
+// Fetch transactions (Gate In / Gate Out logs)
+router.get('/transactions', async (req, res) => {
+    try {
+        const authHeader = await getAuthHeader();
+
+        const response = await axios.get(
+            `${EASYTIME_BASE}/iclock/api/transactions/`,
+            { headers: { Authorization: authHeader } }
+        );
+
+        res.json({ success: true, data: response.data });
+    } catch (err) {
+        console.error('❌ Error fetching transactions:', err.response?.data || err.message);
+        res.status(500).json({ error: err.response?.data || err.message });
+    }
+});
+
+module.exports = router;

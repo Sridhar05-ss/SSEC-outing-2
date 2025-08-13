@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogClose
 } from "../components/ui/dialog";
-import * as faceapi from 'face-api.js';
+
 
 type Staff = {
   username?: string;
@@ -59,21 +59,7 @@ const StaffDetails: React.FC = () => {
     fetchStaff();
   }, []);
 
-  // Load face-api.js models on mount
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        // Use CDN models instead of local files
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        setModelsLoaded(true);
-      } catch (err) {
-        setCameraError("Failed to load face recognition models.");
-      }
-    };
-    loadModels();
-  }, []);
+
 
   // Camera logic for capture modal
   useEffect(() => {

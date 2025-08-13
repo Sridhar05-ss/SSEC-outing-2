@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sree Sakthi Engineering College Design System
+Blue/White branding with professional gradients and shadows
+*/
+
+@layer base {
+  :root {
+    /* Blue/White Theme */
+    --background: 0 0% 100%; /* white */
+    --foreground: 220 40% 20%; /* dark blue */
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 40% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 40% 20%;
+
+    /* Primary - Blue */
+    --primary: 220 90% 56%; /* blue-600 */
+    --primary-foreground: 0 0% 100%; /* white */
+    --primary-glow: 220 100% 70%; /* lighter blue */
+
+    /* Secondary - Light Blue */
+    --secondary: 210 100% 96%; /* blue-50 */
+    --secondary-foreground: 220 40% 20%;
+
+    --muted: 210 40% 98%;
+    --muted-foreground: 220 20% 50%;
+
+    /* Accent - Blue Accent */
+    --accent: 200 100% 50%; /* blue accent */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 20% 95%;
+    --ring: 220 90% 56%;
+
+    /* Gate Terminal Colors - Blue Theme */
+    --gate-primary: 220 90% 56%;
+    --gate-background: 220 30% 98%;
+    --gate-foreground: 220 40% 20%;
+    --gate-accent: 200 100% 50%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--secondary)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary-glow)) 100%);
+    --gradient-gate: linear-gradient(180deg, hsl(var(--gate-background)), hsl(var(--gate-primary)));
+
+    /* Shadows */
+    --shadow-primary: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 4px 20px -4px hsl(var(--primary) / 0.15);
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 40% 20%;
+    --sidebar-primary: 220 90% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 100% 96%;
+    --sidebar-accent-foreground: 220 40% 20%;
+    --sidebar-border: 210 20% 90%;
+    --sidebar-ring: 220 90% 56%;
+  }
+
+  .dark {
+    --background: 220 40% 10%; /* dark blue */
+    --foreground: 210 40% 98%; /* white/near white */
+
+    --card: 220 40% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 40% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 100% 66%; /* lighter blue */
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 210 30% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 30% 20%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 210 100% 66%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 210 30% 20%;
+    --input: 210 30% 20%;
+    --ring: 210 100% 66%;
+    --sidebar-background: 220 40% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 100% 66%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 30% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 210 30% 20%;
+    --sidebar-ring: 210 100% 66%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

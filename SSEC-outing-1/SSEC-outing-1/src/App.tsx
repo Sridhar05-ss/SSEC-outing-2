@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import Management from './pages/Management';
-import FaceTest from './pages/FaceTest';
+
 import Dashboard from './pages/Dashboard';
 import { zktecoAuth } from './lib/zktecoAuth';
 import React from 'react';
@@ -37,7 +37,7 @@ function App() {
         <Route path="/admin" element={<RequireAuth role="admin"><Admin /></RequireAuth>} />
         <Route path="/management" element={<RequireAuth role="management"><Management /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth role="admin"><Dashboard /></RequireAuth>} />
-        <Route path="/face-test" element={<FaceTest />} />
+
         {/* Default route: redirect to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

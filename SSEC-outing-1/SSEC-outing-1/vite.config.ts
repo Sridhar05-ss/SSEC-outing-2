@@ -17,7 +17,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          faceapi: ['face-api.js'],
           firebase: ['firebase/app', 'firebase/database'],
         },
       },
@@ -33,6 +32,6 @@ export default defineConfig({
     host: true,
   },
   optimizeDeps: {
-    include: ['face-api.js'],
+    include: [],
   },
 })

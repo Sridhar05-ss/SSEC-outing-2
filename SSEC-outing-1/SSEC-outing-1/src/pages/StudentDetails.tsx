@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { db } from "../lib/firebase";
 import { ref, get, set, update } from "firebase/database";
-import * as faceapi from "face-api.js";
+
 
 interface Student {
   username?: string;
@@ -40,24 +40,7 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load face-api.js models on mount
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        console.log('Loading face-api.js models...');
-        // Use CDN models instead of local files
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        setModelsLoaded(true);
-        console.log('All face-api.js models loaded.');
-      } catch (err) {
-        setCameraError("Failed to load face recognition models.");
-        console.error('Model loading error:', err);
-      }
-    };
-    loadModels();
-  }, []);
+
 
   const fetchStudents = () => {
     setLoading(true);
