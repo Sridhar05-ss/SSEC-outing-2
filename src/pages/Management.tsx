@@ -494,70 +494,127 @@ export default function Management() {
   // Get today's date string (YYYY-MM-DD)
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Fetch EasyTime Pro transactions and build All Logs (ID, Name, Department, IN/OUT)
-  const fetchEasytimeAllLogs = async () => {
+  // Fetch ZK Attendance from API and save to Firebase
+  const fetchZKAttendance = async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const response = await fetch('http://127.0.0.1:3001/api/easytime/transactions?limit=500');
+      const response = await fetch('http://127.0.0.1:3001/api/easytime/zk-attendance?limit=500');
       const result = await response.json();
 
       if (!result.success) {
-        console.error('Failed fetching EasyTime transactions:', result.error);
+        console.error('Failed fetching ZK attendance:', result.error);
         setAllLogs([]);
         return;
       }
 
       const records = Array.isArray(result.data) ? result.data : [];
+      console.log('ZK Attendance records:', records);
 
-      // Build per-emp logs for today
-      type AccLog = {
-        id: string;
-        name: string;
-        department: string;
-        in: string | null;
-        out: string | null;
-        status: 'Inside' | 'EXIT';
-        timestamp: string; // latest punch for sorting/filtering
-      };
-
-      const byId = new Map<string, AccLog>();
-      for (const rec of records) {
-        if (!rec.punch_time || typeof rec.punch_time !== 'string') continue;
-        // Keep only today's punches
-        if (!rec.punch_time.startsWith(today)) continue;
-        const empId: string = rec.emp_code;
-        const name: string = rec.name || 'Unknown';
-        const department: string = rec.department || 'Unknown';
-
-        if (!byId.has(empId)) {
-          byId.set(empId, { id: empId, name, department, in: rec.punch_time, out: null, status: 'Inside', timestamp: rec.punch_time });
+      // Convert to the expected format for AllLogsTable
+      const formattedLogs = records.map(record => {
+        if (record.type === 'student') {
+          return {
+            id: record.id,
+            name: record.name,
+            department: record.department,
+            in: record.in,
+            out: record.out,
+            status: record.status,
+            timestamp: record.timestamp,
+            mode: "Dayscholar" // Default mode for students
+          } as StudentLog;
         } else {
-          const log = byId.get(empId)!;
-          // Earliest punch becomes IN
-          if (log.in === null || rec.punch_time < log.in) {
-            log.in = rec.punch_time;
-          }
-          // Latest punch becomes OUT (if different from IN)
-          if (log.out === null || rec.punch_time > log.out) {
-            log.out = rec.punch_time;
-          }
-          log.timestamp = log.out || log.in || rec.punch_time;
-          log.status = log.out ? 'EXIT' : 'Inside';
+          return {
+            id: record.id,
+            name: record.name,
+            department: record.department,
+            in: record.in,
+            out: record.out,
+            status: record.status,
+            timestamp: record.timestamp
+          } as StaffLog;
         }
-      }
-
-      const combined = Array.from(byId.values()).map(l => {
-        // If only one punch, keep it as IN and null OUT
-        if (l.in && l.out && l.in === l.out) {
-          return { ...l, out: null, status: 'Inside', timestamp: l.in };
-        }
-        return l;
       });
 
-      combined.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-      setAllLogs(combined);
+      setAllLogs(formattedLogs);
     } catch (e) {
-      console.error('Error building All Logs from EasyTime:', e);
+      console.error('Error fetching ZK attendance:', e);
+      setAllLogs([]);
+    }
+  };
+
+  // Fetch existing ZK Attendance data from Firebase (without calling API)
+  const fetchExistingZKAttendance = async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const zkAttendanceRef = ref(db, `ZKAttendance/${today}`);
+      const snapshot = await get(zkAttendanceRef);
+      
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        console.log('Existing ZK Attendance data:', data);
+        
+        // Convert Firebase data to array format
+        const records = Object.values(data);
+        
+        // Group by employee ID and process punches
+        const groupedByEmployee = new Map();
+        records.forEach((record: any) => {
+          if (!groupedByEmployee.has(record.emp_code)) {
+            groupedByEmployee.set(record.emp_code, {
+              id: record.emp_code,
+              name: record.name,
+              department: record.department,
+              type: record.type,
+              punches: []
+            });
+          }
+          
+          const employee = groupedByEmployee.get(record.emp_code);
+          employee.punches.push({
+            punch_time: record.punch_time,
+            timestamp: record.timestamp
+          });
+        });
+
+        // Convert to final format
+        const finalData = Array.from(groupedByEmployee.values()).map(employee => {
+          employee.punches.sort((a, b) => new Date(a.punch_time).getTime() - new Date(b.punch_time).getTime());
+          
+          const inTime = employee.punches.length > 0 ? employee.punches[0].punch_time : null;
+          const outTime = employee.punches.length > 1 ? employee.punches[employee.punches.length - 1].punch_time : null;
+          
+          if (employee.type === 'student') {
+            return {
+              id: employee.id,
+              name: employee.name,
+              department: employee.department,
+              in: inTime,
+              out: outTime,
+              status: outTime ? "EXIT" : "Inside",
+              timestamp: outTime || inTime || new Date().toISOString(),
+              mode: "Dayscholar" // Default mode for students
+            } as StudentLog;
+          } else {
+            return {
+              id: employee.id,
+              name: employee.name,
+              department: employee.department,
+              in: inTime,
+              out: outTime,
+              status: outTime ? "EXIT" : "Inside",
+              timestamp: outTime || inTime || new Date().toISOString()
+            } as StaffLog;
+          }
+        });
+
+        finalData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setAllLogs(finalData);
+      } else {
+        console.log('No existing ZK Attendance data found for today');
+        setAllLogs([]);
+      }
+    } catch (e) {
+      console.error('Error fetching existing ZK attendance:', e);
       setAllLogs([]);
     }
   };
@@ -806,7 +863,7 @@ export default function Management() {
 
   useEffect(() => {
     fetchLogs();
-    fetchEasytimeAllLogs();
+    fetchExistingZKAttendance(); // Load existing data first
   }, []);
 
   // Filter functions for different log types
@@ -1060,11 +1117,30 @@ export default function Management() {
           <Button 
             onClick={() => {
               fetchLogs();
+              fetchExistingZKAttendance();
             }} 
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {loading ? "Refreshing..." : "Refresh Logs"}
+          </Button>
+          <Button 
+            onClick={() => {
+              fetchZKAttendance();
+            }} 
+            disabled={loading}
+            className="bg-green-600 hover:bg-green-700 text-white ml-2"
+          >
+            {loading ? "Fetching..." : "Fetch ZK Attendance"}
+          </Button>
+          <Button 
+            onClick={() => {
+              fetchExistingZKAttendance();
+            }} 
+            disabled={loading}
+            className="bg-orange-600 hover:bg-orange-700 text-white ml-2"
+          >
+            {loading ? "Loading..." : "Load Existing Data"}
           </Button>
           <Button 
             onClick={() => {

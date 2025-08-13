@@ -257,4 +257,179 @@ router.get('/staff', async (req, res) => {
   }
 });
 
+// GET /easytime/zk-attendance - Fetch attendance from EasyTime Pro, enrich with Firebase data, and save to ZKAttendance
+router.get('/zk-attendance', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '500', 10);
+
+    // Authenticate if needed
+    if (!easyTimeProAPI.accessToken) {
+      const authResult = await easyTimeProAPI.authenticate({ username: 'admin', password: 'Admin@123' });
+      if (!authResult.success) {
+        return res.status(401).json({ success: false, error: 'Authentication failed: ' + authResult.error });
+      }
+    }
+
+    // Fetch transactions from EasyTime Pro
+    const txResult = await easyTimeProAPI.getTransactionLogs(limit);
+    if (!txResult.success) {
+      return res.status(500).json({ success: false, error: txResult.error || 'Failed to fetch transactions' });
+    }
+
+    const records = Array.isArray(txResult.data?.data) ? txResult.data.data : [];
+    
+    // Filter records to only include emp_code and punch_time
+    const filteredRecords = records.map(record => ({
+      emp_code: record.emp_code,
+      punch_time: record.punch_time
+    })).filter(record => record.emp_code && record.punch_time);
+
+    if (filteredRecords.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: 'No attendance records found',
+        data: [] 
+      });
+    }
+
+    // Get employee/student data from Firebase
+    const fbStaffRes = await firebaseDB.getData('Attendance_Log_staffs');
+    const fbStudentsRes = await firebaseDB.getData('students');
+
+    const empCodeToInfo = new Map();
+    
+    // Build staff lookup
+    if (fbStaffRes.success && fbStaffRes.data) {
+      Object.entries(fbStaffRes.data).forEach(([id, info]) => {
+        empCodeToInfo.set(id, { 
+          name: info.name || info.Name || 'Unknown', 
+          department: info.department || 'Unknown',
+          type: 'staff'
+        });
+      });
+    }
+    
+    // Build student lookup
+    if (fbStudentsRes.success && fbStudentsRes.data) {
+      Object.entries(fbStudentsRes.data).forEach(([deptName, byId]) => {
+        if (byId && typeof byId === 'object') {
+          Object.entries(byId).forEach(([id, info]) => {
+            // Only set if not already present from staff
+            if (!empCodeToInfo.has(id)) {
+              empCodeToInfo.set(id, { 
+                name: info.Name || info.name || 'Unknown', 
+                department: deptName,
+                type: 'student'
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Enrich records with name and department
+    const enrichedRecords = filteredRecords.map(record => {
+      const info = empCodeToInfo.get(record.emp_code) || { 
+        name: 'Unknown', 
+        department: 'Unknown',
+        type: 'unknown'
+      };
+      
+      return {
+        emp_code: record.emp_code,
+        punch_time: record.punch_time,
+        name: info.name,
+        department: info.department,
+        type: info.type,
+        timestamp: new Date().toISOString()
+      };
+    });
+
+    // Save enriched records to ZKAttendance collection
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const zkAttendancePath = `ZKAttendance/${today}`;
+    
+    // Get existing data for today
+    const existingDataRes = await firebaseDB.getData(zkAttendancePath);
+    let existingData = {};
+    
+    if (existingDataRes.success && existingDataRes.data) {
+      existingData = existingDataRes.data;
+    }
+
+    // Merge new records with existing data
+    const updatedData = { ...existingData };
+    enrichedRecords.forEach(record => {
+      const recordKey = `${record.emp_code}_${record.punch_time.replace(/[: ]/g, '_')}`;
+      updatedData[recordKey] = record;
+    });
+
+    // Save to Firebase
+    const saveResult = await firebaseDB.setData(zkAttendancePath, updatedData);
+    
+    if (!saveResult.success) {
+      console.error('Failed to save to ZKAttendance:', saveResult.error);
+      // Continue anyway to return the data
+    }
+
+    // Group records by employee for better display
+    const groupedByEmployee = new Map();
+    enrichedRecords.forEach(record => {
+      if (!groupedByEmployee.has(record.emp_code)) {
+        groupedByEmployee.set(record.emp_code, {
+          id: record.emp_code,
+          name: record.name,
+          department: record.department,
+          type: record.type,
+          punches: []
+        });
+      }
+      
+      const employee = groupedByEmployee.get(record.emp_code);
+      employee.punches.push({
+        punch_time: record.punch_time,
+        timestamp: record.timestamp
+      });
+    });
+
+    // Convert to array and sort punches by time
+    const finalData = Array.from(groupedByEmployee.values()).map(employee => {
+      employee.punches.sort((a, b) => new Date(a.punch_time).getTime() - new Date(b.punch_time).getTime());
+      
+      // Determine in/out times
+      const inTime = employee.punches.length > 0 ? employee.punches[0].punch_time : null;
+      const outTime = employee.punches.length > 1 ? employee.punches[employee.punches.length - 1].punch_time : null;
+      
+      return {
+        id: employee.id,
+        name: employee.name,
+        department: employee.department,
+        type: employee.type,
+        in: inTime,
+        out: outTime,
+        status: outTime ? "EXIT" : "Inside",
+        timestamp: outTime || inTime || new Date().toISOString(),
+        punches: employee.punches
+      };
+    });
+
+    // Sort by timestamp (newest first)
+    finalData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    res.json({ 
+      success: true, 
+      message: `Processed ${enrichedRecords.length} attendance records`,
+      data: finalData,
+      savedToFirebase: saveResult.success
+    });
+
+  } catch (error) {
+    console.error('Error processing ZK attendance:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error processing attendance data' 
+    });
+  }
+});
+
 module.exports = router;
