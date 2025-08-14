@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { UserCircle, LogOut, FileText, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../lib/firebase";
-import { ref, get, query, orderByChild, limitToLast } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fakeAuth } from "../lib/fakeAuth";
@@ -11,7 +11,7 @@ const departments = [
   "AIML", "CYBER SECURITY", "AIDS", "IT", "ECE", "CSE", "EEE", "MECH", "CIVIL", "DCSE", "DECE", "DMECH"
 ];
 
-// Interface for staff logs from Firebase
+// Interface for staff logs
 interface StaffLog {
   id: string;
   name: string;
@@ -22,7 +22,7 @@ interface StaffLog {
   timestamp: string;
 }
 
-// Interface for student logs from Firebase
+// Interface for student logs
 interface StudentLog {
   id: string;
   name: string;
@@ -31,48 +31,63 @@ interface StudentLog {
   out: string | null;
   status: "Inside" | "EXIT";
   timestamp: string;
-  mode: string;
 }
 
-// Interface for hostel logs from Firebase
-interface HostelLog {
-  id: string;
+// Interface for ZKteco API transaction
+interface ZKtecoTransaction {
+  id: number;
+  emp_code: string;
+  punch_time: string;
+  punch_state: string;
+  verify_type: number;
+  work_code: string;
+  terminal_sn: string;
+  terminal_alias: string;
+  area_alias: string;
+  longitude: string | null;
+  latitude: string | null;
+  gps_location: string | null;
+  mobile: string | null;
+  source: number;
+  purpose: number;
+  crc: string;
+  is_attendance: string | null;
+  reserved: string | null;
+  upload_time: string;
+  sync_status: string | null;
+  sync_time: string | null;
+  temperature: string | null;
+  mask_flag: string | null;
+  company: string;
+  emp: string;
+  terminal: number;
+}
+
+// Interface for Firebase staff data
+interface FirebaseStaff {
+  username: string;
   name: string;
   department: string;
-  in: string | null;
-  out: string | null;
-  status: "INSIDE" | "OUTSIDE";
-  timestamp: string;
-  passType: string;
-  passApproved: boolean;
-  passRequestId: string | null;
+  position: string;
 }
 
-// Interface for processed logs in AllLogsTable
-interface ProcessedLog {
-  id: string;
-  name: string;
+// Interface for Firebase student data
+interface FirebaseStudent {
+  emp_code?: string;
+  username?: string;
+  id?: string;
+  student_id?: string;
+  first_name?: string;
+  Name?: string;
   department: string;
-  in: string | null;
-  out: string | null;
-  status: "Inside" | "EXIT";
+  mode?: string;
 }
 
-// Interface for visitor logs
-interface VisitorLog {
-  name: string;
-  mobile: string;
-  reason: string;
-  timestamp: string;
-}
-
-function Sidebar({ active, setActive, studentType, setStudentType }) {
+function Sidebar({ active, setActive }) {
   const navItems = [
     { key: "all", label: "All Logs" },
     { key: "staff", label: "Staff Logs" },
-    { key: "dayscholar", label: "Dayscholar Logs" },
-    { key: "hostellers", label: "Hostellers Logs" },
-    { key: "visitors", label: "Visitors Details" },
+    { key: "students", label: "Students Logs" },
   ];
   return (
     <aside className="min-h-screen w-64 bg-gradient-to-b from-blue-700 to-blue-400 text-white flex flex-col py-8 px-4 shadow-2xl print:hidden">
@@ -88,23 +103,9 @@ function Sidebar({ active, setActive, studentType, setStudentType }) {
               {item.label}
               {active === item.key && <span className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-200 rounded-full animate-ping" />}
             </button>
-            {/* Outing/Home Visiting toggle for Hostellers Logs */}
-            {item.key === "hostellers" && active === "hostellers" && (
-              <div className="flex flex-col gap-2 mt-2 ml-4">
-                <button
-                  className={`px-4 py-2 rounded-lg font-semibold text-left border-2 transition-all duration-150 ${studentType === "outing" ? "bg-white text-blue-700 border-blue-700 shadow-md" : "bg-blue-100 text-blue-700 border-transparent hover:border-blue-400"}`}
-                  onClick={() => setStudentType("outing")}
-                >Outing Logs</button>
-                <button
-                  className={`px-4 py-2 rounded-lg font-semibold text-left border-2 transition-all duration-150 ${studentType === "homevisiting" ? "bg-white text-blue-700 border-blue-700 shadow-md" : "bg-blue-100 text-blue-700 border-transparent hover:border-blue-400"}`}
-                  onClick={() => setStudentType("homevisiting")}
-                >Home Visiting Logs</button>
-              </div>
-            )}
           </div>
         ))}
       </nav>
-      {/* Removed Admin and Logout from sidebar */}
     </aside>
   );
 }
@@ -169,9 +170,6 @@ function AllLogsTable({ logs }) {
     });
   };
 
-  // For staff logs, we don't need to group since each record already has in/out times
-  const processedLogs = logs;
-
   return (
     <div className="w-[95%] mx-auto bg-white rounded-2xl shadow-lg p-4 overflow-y-auto max-h-[70vh] print:p-0 print:shadow-none print:bg-white">
       <table className="w-full text-left rounded text-sm table-fixed">
@@ -186,10 +184,10 @@ function AllLogsTable({ logs }) {
           </tr>
         </thead>
         <tbody>
-          {processedLogs.length === 0 ? (
+          {logs.length === 0 ? (
             <tr><td colSpan={6} className="py-6 text-center text-blue-700">No logs found.</td></tr>
           ) : (
-            processedLogs.map((log, i) => (
+            logs.map((log, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-blue-50 transition-all hover:bg-blue-100" : "bg-white transition-all hover:bg-blue-50"}>
                 <td className="py-3 px-6 text-center break-words truncate max-w-[8rem]">{log.id}</td>
                 <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.name}</td>
@@ -198,150 +196,11 @@ function AllLogsTable({ logs }) {
                 <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.out)}</td>
                 <td className="py-3 px-6 text-center">
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    log.status === "EXIT" || log.status === "OUTSIDE" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                    log.status === "EXIT" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
                   }`}>
                     {log.status}
                   </span>
                 </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function StudentLogsTable({ logs }) {
-  return (
-    <div className="w-full">
-      <table className="w-full text-left text-sm table-fixed bg-white rounded-2xl shadow-lg p-4 overflow-y-auto max-h-[70vh] print:p-0 print:shadow-none print:bg-white">
-        <thead>
-          <tr className="bg-blue-600 text-white text-center">
-            <th className="py-3 px-6">ID</th>
-            <th className="py-3 px-6">NAME</th>
-            <th className="py-3 px-6">DEPARTMENT</th>
-            <th className="py-3 px-6">IN</th>
-            <th className="py-3 px-6">OUT</th>
-            <th className="py-3 px-6">STATUS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.length === 0 ? (
-            <tr><td colSpan={6} className="py-6 text-center text-blue-700">No students found.</td></tr>
-          ) : (
-            logs.map((log, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-blue-50 transition-all hover:bg-blue-100" : "bg-white transition-all hover:bg-blue-50"}>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[8rem]">{log.id}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.name}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.dept}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.in}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.out}</td>
-                <td className="py-3 px-6 text-center">{getStatusBadge(log.in, log.out)}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function OutingLogsTable({ logs }) {
-  const formatTime = (timestamp) => {
-    if (!timestamp) return "-";
-    return new Date(timestamp).toLocaleTimeString('en-US', { 
-      hour12: true, 
-      hour: 'numeric', 
-      minute: '2-digit'
-    });
-  };
-
-  return (
-    <div className="w-[95%] mx-auto bg-white rounded-2xl shadow-lg p-4 overflow-y-auto max-h-[70vh] print:p-0 print:shadow-none print:bg-white">
-      <table className="w-full text-left rounded text-sm table-fixed">
-        <thead>
-          <tr className="bg-blue-600 text-white text-center">
-            <th className="py-3 px-6">ID</th>
-            <th className="py-3 px-6">Name</th>
-            <th className="py-3 px-6">Department</th>
-            <th className="py-3 px-6">OUT</th>
-            <th className="py-3 px-6">IN</th>
-            <th className="py-3 px-6">Status</th>
-            <th className="py-3 px-6">Pass Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.length === 0 ? (
-            <tr><td colSpan={7} className="py-6 text-center text-blue-700">No outing logs found.</td></tr>
-          ) : (
-            logs.map((log, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-blue-50 transition-all hover:bg-blue-100" : "bg-white transition-all hover:bg-blue-50"}>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[8rem]">{log.id}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.name}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.department}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.out)}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.in)}</td>
-                <td className="py-3 px-6 text-center">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    log.status === "OUTSIDE" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                  }`}>
-                    {log.status}
-                  </span>
-                </td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.passType || "-"}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function HomeVisitingLogsTable({ logs }) {
-  const formatTime = (timestamp) => {
-    if (!timestamp) return "-";
-    return new Date(timestamp).toLocaleTimeString('en-US', { 
-      hour12: true, 
-      hour: 'numeric', 
-      minute: '2-digit'
-    });
-  };
-
-  return (
-    <div className="w-[95%] mx-auto bg-white rounded-2xl shadow-lg p-4 overflow-y-auto max-h-[70vh] print:p-0 print:shadow-none print:bg-white">
-      <table className="w-full text-left rounded text-sm table-fixed">
-        <thead>
-          <tr className="bg-blue-600 text-white text-center">
-            <th className="py-3 px-6">ID</th>
-            <th className="py-3 px-6">Name</th>
-            <th className="py-3 px-6">Department</th>
-            <th className="py-3 px-6">OUT</th>
-            <th className="py-3 px-6">IN</th>
-            <th className="py-3 px-6">Status</th>
-            <th className="py-3 px-6">Pass Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.length === 0 ? (
-            <tr><td colSpan={7} className="py-6 text-center text-blue-700">No home visiting logs found.</td></tr>
-          ) : (
-            logs.map((log, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-blue-50 transition-all hover:bg-blue-100" : "bg-white transition-all hover:bg-blue-50"}>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[8rem]">{log.id}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.name}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.department}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.out)}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.in)}</td>
-                <td className="py-3 px-6 text-center">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    log.status === "OUTSIDE" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                  }`}>
-                    {log.status}
-                  </span>
-                </td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.passType || "-"}</td>
               </tr>
             ))
           )}
@@ -401,28 +260,47 @@ function StaffLogsTable({ logs }) {
   );
 }
 
-function VisitorsTable({ visitors }) {
+function StudentLogsTable({ logs }) {
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "-";
+    return new Date(timestamp).toLocaleTimeString('en-US', { 
+      hour12: true, 
+      hour: 'numeric', 
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="w-[95%] mx-auto bg-white rounded-2xl shadow-lg p-4 overflow-y-auto max-h-[70vh] print:p-0 print:shadow-none print:bg-white">
       <table className="w-full text-left rounded text-sm table-fixed">
         <thead>
           <tr className="bg-blue-600 text-white text-center">
+            <th className="py-3 px-6">ID</th>
             <th className="py-3 px-6">Name</th>
-            <th className="py-3 px-6">Mobile Number</th>
-            <th className="py-3 px-6">Reason of Visit</th>
-            <th className="py-3 px-6">Timestamp</th>
+            <th className="py-3 px-6">Department</th>
+            <th className="py-3 px-6">IN</th>
+            <th className="py-3 px-6">OUT</th>
+            <th className="py-3 px-6">Status</th>
           </tr>
         </thead>
         <tbody>
-          {visitors.length === 0 ? (
-            <tr><td colSpan={4} className="py-6 text-center text-blue-700">No visitors found.</td></tr>
+          {logs.length === 0 ? (
+            <tr><td colSpan={6} className="py-6 text-center text-blue-700">No logs found.</td></tr>
           ) : (
-            visitors.map((v, i) => (
+            logs.map((log, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-blue-50 transition-all hover:bg-blue-100" : "bg-white transition-all hover:bg-blue-50"}>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{v.name}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{v.mobile}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[16rem]">{v.reason}</td>
-                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{v.timestamp}</td>
+                <td className="py-3 px-6 text-center break-words truncate max-w-[8rem]">{log.id}</td>
+                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{log.name}</td>
+                <td className="py-3 px-6 text-center break-words truncate max-w-[10rem]">{log.department}</td>
+                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.in)}</td>
+                <td className="py-3 px-6 text-center break-words truncate max-w-[12rem]">{formatTime(log.out)}</td>
+                <td className="py-3 px-6 text-center">
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    log.status === "EXIT" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                  }`}>
+                    {log.status}
+                  </span>
+                </td>
               </tr>
             ))
           )}
@@ -432,396 +310,306 @@ function VisitorsTable({ visitors }) {
   );
 }
 
-function VisitorsSearchBar({ search, setSearch, date, setDate, onClear, onDownloadPDF, onWeekly }) {
-  return (
-    <div className="flex flex-col md:flex-row gap-4 items-center mb-6">
-      <div className="relative w-full md:w-1/2">
-        <input
-          className="rounded-md border border-gray-300 px-8 py-2 text-sm focus:ring-blue-500 w-full bg-white/80 placeholder:text-gray-400"
-          placeholder="Search by Name or Mobile..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-400">🔍</span>
-      </div>
-      <div className="flex items-center gap-2 w-full md:w-auto">
-        <label className="text-blue-700 font-medium">Date:</label>
-        <input
-          type="date"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 bg-white/80"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-        />
-      </div>
-      <button
-        className="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-1 rounded font-medium transition print:hidden"
-        onClick={onClear}
-        type="button"
-      >Clear Filters</button>
-      <button
-        className="bg-green-600 hover:bg-green-700 text-white rounded shadow px-4 py-2 font-semibold transition-all duration-150 active:scale-95 print:hidden"
-        onClick={onDownloadPDF}
-        type="button"
-      >Download as PDF</button>
-      <button
-        className="bg-blue-500 hover:bg-blue-700 text-white rounded shadow px-4 py-2 font-semibold transition-all duration-150 active:scale-95 print:hidden"
-        onClick={onWeekly}
-        type="button"
-      >Weekly Records</button>
-    </div>
-  );
-}
-
 export default function Management() {
   const [active, setActive] = useState("all");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
-  const [studentType, setStudentType] = useState("outing");
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const [showWeekly, setShowWeekly] = useState(false);
   const [weeklyData, setWeeklyData] = useState([]);
   const weeklyRef = useRef(null);
   
-  // State for real data from Firebase
+  // State for logs from ZKteco API and Firebase
   const [allLogs, setAllLogs] = useState<(StaffLog | StudentLog)[]>([]);
   const [staffLogs, setStaffLogs] = useState<StaffLog[]>([]);
-  const [dayscholarLogs, setDayscholarLogs] = useState<StudentLog[]>([]);
-  const [hostellerLogs, setHostellerLogs] = useState<HostelLog[]>([]);
-  const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
+  const [studentLogs, setStudentLogs] = useState<StudentLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get today's date string (YYYY-MM-DD)
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Get today's date string (YYYY-MM-DD) - Set to current date 2025-08-14
+  const todayStr = "2025-08-14";
 
-  // Fetch EasyTime Pro transactions and build All Logs (ID, Name, Department, IN/OUT)
-  const fetchEasytimeAllLogs = async () => {
+  // Fetch ZKteco transactions and build logs
+  const fetchZKtecoTransactions = async () => {
+    console.log('=== STARTING FETCH PROCESS ===');
     try {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const response = await fetch('http://127.0.0.1:3001/api/easytime/transactions?limit=500');
+      const today = "2025-08-14"; // YYYY-MM-DD - Set to current date
+      
+      // Fetch transactions from backend (which calls ZKteco API)
+      console.log('Fetching transactions from backend...');
+      const response = await fetch('http://127.0.0.1:3001/api/zkteco/transactions');
+      console.log('Backend response status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
-
+      console.log('Backend API response:', result);
+      console.log('Backend API response structure:', {
+        success: result.success,
+        dataType: typeof result.data,
+        dataLength: Array.isArray(result.data) ? result.data.length : 'Not an array',
+        hasData: !!result.data
+      });
       if (!result.success) {
-        console.error('Failed fetching EasyTime transactions:', result.error);
-        setAllLogs([]);
-        return;
+        throw new Error(result.error || 'Failed to fetch transactions');
       }
+      
+      const transactions: ZKtecoTransaction[] = Array.isArray(result.data) ? result.data : [];
 
-      const records = Array.isArray(result.data) ? result.data : [];
-
-      // Build per-emp logs for today
-      type AccLog = {
-        id: string;
-        name: string;
-        department: string;
-        in: string | null;
-        out: string | null;
-        status: 'Inside' | 'EXIT';
-        timestamp: string; // latest punch for sorting/filtering
-      };
-
-      const byId = new Map<string, AccLog>();
-      for (const rec of records) {
-        if (!rec.punch_time || typeof rec.punch_time !== 'string') continue;
-        // Keep only today's punches
-        if (!rec.punch_time.startsWith(today)) continue;
-        const empId: string = rec.emp_code;
-        const name: string = rec.name || 'Unknown';
-        const department: string = rec.department || 'Unknown';
-
-        if (!byId.has(empId)) {
-          byId.set(empId, { id: empId, name, department, in: rec.punch_time, out: null, status: 'Inside', timestamp: rec.punch_time });
-        } else {
-          const log = byId.get(empId)!;
-          // Earliest punch becomes IN
-          if (log.in === null || rec.punch_time < log.in) {
-            log.in = rec.punch_time;
-          }
-          // Latest punch becomes OUT (if different from IN)
-          if (log.out === null || rec.punch_time > log.out) {
-            log.out = rec.punch_time;
-          }
-          log.timestamp = log.out || log.in || rec.punch_time;
-          log.status = log.out ? 'EXIT' : 'Inside';
-        }
-      }
-
-      const combined = Array.from(byId.values()).map(l => {
-        // If only one punch, keep it as IN and null OUT
-        if (l.in && l.out && l.in === l.out) {
-          return { ...l, out: null, status: 'Inside', timestamp: l.in };
-        }
-        return l;
+      // Filter transactions for today only (2025-08-14)
+      console.log('Filtering for date:', today);
+      console.log('All transactions before filtering:', transactions.length);
+      const todayTransactions = transactions.filter(transaction => {
+        const matches = transaction.punch_time && transaction.punch_time.startsWith(today);
+                    if (!matches) {
+              console.log(`Transaction ${transaction.emp_code}: ${transaction.punch_time} - SKIPPED (not today)`);
+            }
+        return matches;
       });
 
-      combined.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-      setAllLogs(combined);
-    } catch (e) {
-      console.error('Error building All Logs from EasyTime:', e);
-      setAllLogs([]);
-    }
-  };
+      console.log('Today\'s ZKteco transactions:', todayTransactions);
+      console.log('Total transactions found:', todayTransactions.length);
+      
+      // Check for multiple transactions for ID 077
+      const transactionsFor077 = todayTransactions.filter(t => t.emp_code === '077');
+      if (transactionsFor077.length > 0) {
+        console.log(`🔍 Found ${transactionsFor077.length} transactions for ID 077:`, transactionsFor077);
+      }
 
-  // Fetch data from Firebase
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      console.log('Fetching logs for date:', today);
+      // Fetch staff and student data from Firebase
+      const staffRef = ref(db, 'staff');
+      const studentsRef = ref(db, 'students');
       
-      const staffLogs: StaffLog[] = [];
-      const dayscholarLogs: StudentLog[] = [];
-      const hostellerLogs: HostelLog[] = [];
+      const [staffSnapshot, studentsSnapshot] = await Promise.all([
+        get(staffRef),
+        get(studentsRef)
+      ]);
+
+      const staffData: Record<string, FirebaseStaff> = staffSnapshot.exists() ? staffSnapshot.val() : {};
+      const studentsData: Record<string, FirebaseStudent> = studentsSnapshot.exists() ? studentsSnapshot.val() : {};
+
+      console.log('Firebase staff data:', staffData);
+      console.log('Firebase students data:', studentsData);
+      console.log('Firebase students data keys:', Object.keys(studentsData));
+      console.log('Sample student data:', Object.values(studentsData)[0]);
       
-      // Fetch from new_attend collection for staff and dayscholar data
-      const attendanceRef = ref(db, `new_attend/${today}`);
-      console.log('Fetching from new_attend collection:', `new_attend/${today}`);
-      const attendanceSnapshot = await get(attendanceRef);
-      
-      if (attendanceSnapshot.exists()) {
-        const attendanceData = attendanceSnapshot.val();
-        console.log('Attendance data found:', Object.keys(attendanceData));
-        console.log('Raw attendance data:', attendanceData);
+      // Debug: Check if students data is properly structured
+      console.log('Firebase departments found:', Object.keys(studentsData));
+      Object.entries(studentsData).forEach(([deptKey, deptStudents]) => {
+        console.log(`Department ${deptKey}: ${Object.keys(deptStudents || {}).length} students`);
+      });
+
+      // Build logs from transactions
+      const staffLogsMap = new Map<string, StaffLog>();
+      const studentLogsMap = new Map<string, StudentLog>();
+
+      todayTransactions.forEach(transaction => {
+        const empCode = transaction.emp_code;
+        const punchTime = transaction.punch_time;
+
+        console.log(`Processing transaction for emp_code: ${empCode}, punch_time: ${punchTime}`);
         
-        // Process attendance records
-        Object.entries(attendanceData).forEach(([personId, personData]: [string, unknown]) => {
-          const person = personData as Record<string, unknown>;
-          console.log('Processing record:', personId, person);
+        // Special debugging for ID 077
+        if (empCode === '077') {
+          console.log(`🔍 DEBUG for ID 077: Processing punch at ${punchTime}`);
+        }
+
+        // Check if emp_code exists in staff collection
+        const staffEntry = Object.entries(staffData).find(([key, staff]) => {
+          return staff.username === empCode;
+        });
+
+        if (staffEntry) {
+          const [staffId, staffInfo] = staffEntry;
+          const existingLog = staffLogsMap.get(staffId);
           
-          // Handle both empty string and null values for in/out
-          const inTime = person.in && person.in !== '' ? (person.in as string) : null;
-          const outTime = person.out && person.out !== '' ? (person.out as string) : null;
-          
-          if (person.role === "staff") {
-            // Process staff records
+          if (existingLog) {
+            // Special debugging for ID 077
+            if (empCode === '077') {
+              console.log(`🔍 DEBUG for ID 077: Found existing log - IN: ${existingLog.in}, OUT: ${existingLog.out}`);
+            }
+            
+            // Update existing log - earliest punch becomes IN, latest becomes OUT
+            if (!existingLog.in || punchTime < existingLog.in) {
+              existingLog.in = punchTime;
+            }
+            if (!existingLog.out || punchTime > existingLog.out) {
+              existingLog.out = punchTime;
+            }
+            existingLog.timestamp = existingLog.out || existingLog.in || punchTime;
+            existingLog.status = existingLog.out ? "EXIT" : "Inside";
+            
+            // Special debugging for ID 077
+            if (empCode === '077') {
+              console.log(`🔍 DEBUG for ID 077: Updated log - IN: ${existingLog.in}, OUT: ${existingLog.out}, Status: ${existingLog.status}`);
+            }
+          } else {
+            // Create new staff log
             const staffLog: StaffLog = {
-              id: personId,
-              name: (person.name as string) || "Unknown",
-              department: (person.department as string) || "Unknown",
-              in: inTime,
-              out: outTime,
-              status: outTime ? "EXIT" : "Inside",
-              timestamp: inTime || outTime || new Date().toISOString()
+              id: staffInfo.username,
+              name: staffInfo.name,
+              department: staffInfo.department,
+              in: punchTime,
+              out: null,
+              status: "Inside",
+              timestamp: punchTime
             };
+            staffLogsMap.set(staffId, staffLog);
             
-            console.log('Created staff log:', staffLog);
-            staffLogs.push(staffLog);
-          } else if (person.role === "student" && person.mode !== "Hosteller") {
-            // Process dayscholar student records only
-            const studentLog: StudentLog = {
-              id: personId,
-              name: (person.name as string) || "Unknown",
-              department: (person.department as string) || "Unknown",
-              in: inTime,
-              out: outTime,
-              status: outTime ? "EXIT" : "Inside",
-              timestamp: inTime || outTime || new Date().toISOString(),
-              mode: (person.mode as string) || "Unknown"
-            };
-            
-            console.log('Created dayscholar log:', studentLog);
-            dayscholarLogs.push(studentLog);
+            // Special debugging for ID 077
+            if (empCode === '077') {
+              console.log(`🔍 DEBUG for ID 077: Created new log - IN: ${staffLog.in}, OUT: ${staffLog.out}, Status: ${staffLog.status}`);
+            }
           }
-        });
-      } else {
-        console.log('No attendance data found for today in new_attend collection');
-      }
-      
-      // Fetch from hostel_logs collection for hosteller data
-      const hostelLogsRef = ref(db, `hostel_logs/${today}`);
-      console.log('Fetching from hostel_logs collection:', `hostel_logs/${today}`);
-      const hostelLogsSnapshot = await get(hostelLogsRef);
-      
-      if (hostelLogsSnapshot.exists()) {
-        const hostelLogsData = hostelLogsSnapshot.val();
-        console.log('Hostel logs data found:', Object.keys(hostelLogsData));
-        
-        // Process hostel logs records
-        Object.entries(hostelLogsData).forEach(([personId, personData]: [string, unknown]) => {
-          const person = personData as Record<string, unknown>;
-          console.log('Processing hostel record:', personId, person);
+        } else {
+          console.log(`Staff not found for emp_code: ${empCode}, checking students...`);
+          // Check if emp_code exists in students collection (nested by department)
+          let studentEntry = null;
+          let studentDepartment = '';
           
-          // Handle both empty string and null values for in/out
-          const inTime = person.in && person.in !== '' ? (person.in as string) : null;
-          const outTime = person.out && person.out !== '' ? (person.out as string) : null;
-          
-          const hostelLog: HostelLog = {
-            id: personId,
-            name: (person.name as string) || "Unknown",
-            department: (person.department as string) || "Unknown",
-            in: inTime,
-            out: outTime,
-            status: outTime ? "OUTSIDE" : "INSIDE",
-            timestamp: inTime || outTime || new Date().toISOString(),
-            passType: (person.passType as string) || "",
-            passApproved: (person.passApproved as boolean) || false,
-            passRequestId: (person.passRequestId as string) || null
-          };
-          
-          console.log('Created hostel log:', hostelLog);
-          hostellerLogs.push(hostelLog);
-        });
-      } else {
-        console.log('No hostel logs data found for today in hostel_logs collection');
-      }
-      
-      // Also check if there are any records in the logs collection
-      const logsRef = ref(db, 'logs');
-      const logsSnapshot = await get(logsRef);
-      
-      if (logsSnapshot.exists()) {
-        const logsData = logsSnapshot.val();
-        console.log('Logs data found:', Object.keys(logsData).length, 'entries');
-        
-        // Process logs collection for staff and student records
-        Object.entries(logsData).forEach(([logId, logData]: [string, unknown]) => {
-          const log = logData as Record<string, unknown>;
-          
-          // Only include logs from today
-          if (log.timestamp && typeof log.timestamp === 'string' && log.timestamp.startsWith(today)) {
-            if (log.role === "staff") {
-              // Process staff records
-              const existingStaffIndex = staffLogs.findIndex(s => s.id === (log.staffId as string));
+          // Search through all departments
+          for (const [deptKey, deptStudents] of Object.entries(studentsData)) {
+            if (typeof deptStudents === 'object' && deptStudents !== null) {
+              const foundStudent = Object.entries(deptStudents).find(([studentKey, studentData]) => {
+                // Check if emp_code matches
+                return studentData && studentData.emp_code === empCode;
+              });
               
-              if (existingStaffIndex >= 0) {
-                // Update existing staff record
-                const existingStaff = staffLogs[existingStaffIndex];
-                if (log.direction === "in" && !existingStaff.in) {
-                  existingStaff.in = log.timestamp as string;
-                  existingStaff.timestamp = log.timestamp as string;
-                } else if (log.direction === "out" && !existingStaff.out) {
-                  existingStaff.out = log.timestamp as string;
-                  existingStaff.timestamp = log.timestamp as string;
-                }
-                existingStaff.status = existingStaff.out ? "EXIT" : "Inside";
-              } else {
-                // Create new staff record
-                const staffLog: StaffLog = {
-                  id: (log.staffId as string) || logId,
-                  name: (log.name as string) || "Unknown",
-                  department: (log.department as string) || "Unknown",
-                  in: log.direction === "in" ? (log.timestamp as string) : null,
-                  out: log.direction === "out" ? (log.timestamp as string) : null,
-                  status: log.direction === "out" ? "EXIT" : "Inside",
-                  timestamp: log.timestamp as string
-                };
-                staffLogs.push(staffLog);
-              }
-            } else if (log.role === "student") {
-              // Process student records
-              const existingStudentIndex = dayscholarLogs.findIndex(s => s.id === (log.studentId as string));
-              const existingHostellerIndex = hostellerLogs.findIndex(s => s.id === (log.studentId as string));
-              
-              if (existingStudentIndex >= 0) {
-                // Update existing dayscholar record
-                const existingStudent = dayscholarLogs[existingStudentIndex];
-                if (log.direction === "in" && !existingStudent.in) {
-                  existingStudent.in = log.timestamp as string;
-                  existingStudent.timestamp = log.timestamp as string;
-                } else if (log.direction === "out" && !existingStudent.out) {
-                  existingStudent.out = log.timestamp as string;
-                  existingStudent.timestamp = log.timestamp as string;
-                }
-                existingStudent.status = existingStudent.out ? "EXIT" : "Inside";
-              } else if (existingHostellerIndex >= 0) {
-                // Update existing hosteller record
-                const existingStudent = hostellerLogs[existingHostellerIndex];
-                if (log.direction === "in" && !existingStudent.in) {
-                  existingStudent.in = log.timestamp as string;
-                  existingStudent.timestamp = log.timestamp as string;
-                } else if (log.direction === "out" && !existingStudent.out) {
-                  existingStudent.out = log.timestamp as string;
-                  existingStudent.timestamp = log.timestamp as string;
-                }
-                existingStudent.status = existingStudent.out ? "OUTSIDE" : "INSIDE";
-              } else {
-                // Create new student record
-                const studentLog: StudentLog = {
-                  id: (log.studentId as string) || logId,
-                  name: (log.name as string) || "Unknown",
-                  department: (log.department as string) || "Unknown",
-                  in: log.direction === "in" ? (log.timestamp as string) : null,
-                  out: log.direction === "out" ? (log.timestamp as string) : null,
-                  status: log.direction === "out" ? "EXIT" : "Inside",
-                  timestamp: log.timestamp as string,
-                  mode: (log.mode as string) || "Unknown"
-                };
-                
-                // Categorize based on mode
-                if (studentLog.mode === "Hosteller") {
-                  // Convert StudentLog to HostelLog for hosteller students
-                  const hostelLog: HostelLog = {
-                    id: studentLog.id,
-                    name: studentLog.name,
-                    department: studentLog.department,
-                    in: studentLog.in,
-                    out: studentLog.out,
-                    status: studentLog.out ? "OUTSIDE" : "INSIDE",
-                    timestamp: studentLog.timestamp,
-                    passType: "",
-                    passApproved: false,
-                    passRequestId: null
-                  };
-                  hostellerLogs.push(hostelLog);
-                } else {
-                  dayscholarLogs.push(studentLog);
-                }
+              if (foundStudent) {
+                studentEntry = foundStudent;
+                studentDepartment = deptKey;
+                break;
               }
             }
           }
-        });
-      }
-      
-      // Sort by timestamp (newest first)
-      staffLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      dayscholarLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      hostellerLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      // Combine all logs for "All Logs" view (excluding hosteller logs)
-      const allLogsCombined = [...staffLogs, ...dayscholarLogs];
-      allLogsCombined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      // All Logs will be set by EasyTime transactions; keep Firebase sets for other tabs
-      setStaffLogs(staffLogs);
-      setDayscholarLogs(dayscholarLogs);
-      setHostellerLogs(hostellerLogs);
-      
-      console.log('Successfully fetched logs:', {
-        staff: staffLogs.length,
-        dayscholar: dayscholarLogs.length,
-        hosteller: hostellerLogs.length,
-        total: allLogsCombined.length
+
+                      if (studentEntry) {
+              const [studentId, studentInfo] = studentEntry;
+              console.log(`Student found! ID: ${studentId}, Department: ${studentDepartment}, Info:`, studentInfo);
+              const existingLog = studentLogsMap.get(studentId);
+            
+            if (existingLog) {
+              // Update existing log - earliest punch becomes IN, latest becomes OUT
+              if (!existingLog.in || punchTime < existingLog.in) {
+                existingLog.in = punchTime;
+              }
+              if (!existingLog.out || punchTime > existingLog.out) {
+                existingLog.out = punchTime;
+              }
+              existingLog.timestamp = existingLog.out || existingLog.in || punchTime;
+              existingLog.status = existingLog.out ? "EXIT" : "Inside";
+            } else {
+              // Create new student log
+              const studentLog: StudentLog = {
+                id: studentInfo.emp_code || empCode,
+                name: studentInfo.first_name || studentInfo.Name || 'Unknown',
+                department: studentInfo.department || studentDepartment || 'Unknown',
+                in: punchTime,
+                out: null,
+                status: "Inside",
+                timestamp: punchTime
+              };
+              studentLogsMap.set(studentId, studentLog);
+            }
+          } else {
+            console.log(`No student found for emp_code: ${empCode} - Transaction will be ignored`);
+            console.log(`Searched through all departments: ${Object.keys(studentsData).join(', ')}`);
+            console.log(`Available student emp_codes:`, Object.entries(studentsData).flatMap(([deptKey, deptStudents]) => {
+              if (deptStudents && typeof deptStudents === 'object') {
+                return Object.entries(deptStudents).map(([studentKey, studentData]) => ({
+                  dept: deptKey,
+                  studentKey,
+                  emp_code: studentData?.emp_code,
+                  username: studentData?.username
+                }));
+              }
+              return [];
+            }));
+          }
+        }
+      });
+
+      // Convert maps to arrays and sort by timestamp
+      const staffLogsArray = Array.from(staffLogsMap.values()).sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const studentLogsArray = Array.from(studentLogsMap.values()).sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      // Combine for all logs
+      const allLogsCombined = [...staffLogsArray, ...studentLogsArray].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      setStaffLogs(staffLogsArray);
+      setStudentLogs(studentLogsArray);
+      setAllLogs(allLogsCombined);
+
+      console.log('=== FETCH PROCESS COMPLETE ===');
+      console.log('Final results:', {
+        transactions: todayTransactions.length,
+        staff: staffLogsArray.length,
+        students: studentLogsArray.length,
+        all: allLogsCombined.length
       });
       
+      console.log('Staff logs details:', staffLogsArray);
+      console.log('Student logs details:', studentLogsArray);
+      console.log('All logs details:', allLogsCombined);
+
     } catch (error) {
-      console.error('Error fetching logs:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error fetching ZKteco transactions:', error);
       setAllLogs([]);
       setStaffLogs([]);
-      setDayscholarLogs([]);
-      setHostellerLogs([]);
-    } finally {
-      setLoading(false);
+      setStudentLogs([]);
+      
+      // Show user-friendly error message
+      if (error.message.includes('Failed to fetch')) {
+        console.error('Network error - please check if backend server is running on port 3001');
+      } else if (error.message.includes('401')) {
+        console.error('Authentication error - please check EasyTime Pro credentials');
+      } else if (error.message.includes('503')) {
+        console.error('EasyTime Pro server is not reachable - please check if it\'s running on port 8081');
+      }
     }
   };
 
   useEffect(() => {
-    fetchLogs();
-    fetchEasytimeAllLogs();
+    // Only fetch data once on component mount
+    console.log('=== COMPONENT MOUNTED - STARTING INITIALIZATION ===');
+    const initializeData = async () => {
+      try {
+        await fetchZKtecoTransactions();
+      } catch (error) {
+        console.error('Error initializing data:', error);
+      } finally {
+        setLoading(false);
+        console.log('=== INITIALIZATION COMPLETE ===');
+      }
+    };
+    
+    initializeData();
   }, []);
 
   // Filter functions for different log types
-  const filterToday = (logs: StaffLog[] | StudentLog[] | HostelLog[]) => logs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
+  const filterToday = (logs: StaffLog[] | StudentLog[]) => logs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
   const todayStaffLogs = staffLogs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
-  const todayDayscholarLogs = dayscholarLogs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
-  const todayHostellerLogs = hostellerLogs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
+  const todayStudentLogs = studentLogs.filter(log => log.timestamp && log.timestamp.startsWith(todayStr));
 
   // Staff Logs Info Boxes
   const totalEntries = todayStaffLogs.filter(log => log.in && !log.out).length;
   const totalExits = todayStaffLogs.filter(log => log.out).length;
   const currentlyInside = totalEntries - totalExits;
 
+  // Student Logs Info Boxes
+  const studentTotalEntries = todayStudentLogs.filter(log => log.in && !log.out).length;
+  const studentTotalExits = todayStudentLogs.filter(log => log.out).length;
+  const studentCurrentlyInside = studentTotalEntries - studentTotalExits;
+
   // Filtering logic for real data
-  const filterLogs = (logs: StaffLog[] | StudentLog[] | HostelLog[]) => {
+  const filterLogs = (logs: StaffLog[] | StudentLog[]) => {
     return logs.filter(log =>
       (!search || log.id.toLowerCase().includes(search.toLowerCase()) || 
        (log.name && log.name.toLowerCase().includes(search.toLowerCase()))) &&
@@ -846,34 +634,7 @@ export default function Management() {
     );
   };
 
-  const filterHostelLogs = (logs: HostelLog[]) => {
-    return logs.filter(log =>
-      (!search || log.id.toLowerCase().includes(search.toLowerCase()) || 
-       (log.name && log.name.toLowerCase().includes(search.toLowerCase()))) &&
-      (!date || (log.timestamp && log.timestamp.startsWith(date)))
-    );
-  };
-
-  // Filter functions for specific hosteller log types
-  const filterOutingLogs = (logs: HostelLog[]) => {
-    return logs.filter(log =>
-      log.passType === "outing" &&
-      (!search || log.id.toLowerCase().includes(search.toLowerCase()) || 
-       (log.name && log.name.toLowerCase().includes(search.toLowerCase()))) &&
-      (!date || (log.timestamp && log.timestamp.startsWith(date)))
-    );
-  };
-
-  const filterHomeVisitingLogs = (logs: HostelLog[]) => {
-    return logs.filter(log =>
-      log.passType === "home_visit" &&
-      (!search || log.id.toLowerCase().includes(search.toLowerCase()) || 
-       (log.name && log.name.toLowerCase().includes(search.toLowerCase()))) &&
-      (!date || (log.timestamp && log.timestamp.startsWith(date)))
-    );
-  };
-
-  // Filter function for mixed log types (AllLogs - staff and dayscholar only)
+  // Filter function for mixed log types (AllLogs - staff and students)
   const filterAllLogs = (logs: (StaffLog | StudentLog)[]) => {
     return logs.filter(log =>
       (!search || log.id.toLowerCase().includes(search.toLowerCase()) || 
@@ -914,37 +675,9 @@ export default function Management() {
     const today = new Date();
     const dateStr = today.toLocaleDateString("en-GB").replace(/\//g, "-");
     let logType = "AllLogs";
-    if (active === "student") logType = "StudentLogs";
+    if (active === "students") logType = "StudentLogs";
     if (active === "staff") logType = "StaffLogs";
     pdf.save(`${logType}_${dateStr}.pdf`);
-  };
-
-  const [visitorsSearch, setVisitorsSearch] = useState("");
-  const [visitorsDate, setVisitorsDate] = useState("");
-  const visitorsRef = useRef(null);
-  const filterVisitors = (visitors) => {
-    return visitors.filter(v =>
-      (!visitorsSearch || v.name.toLowerCase().includes(visitorsSearch.toLowerCase()) || v.mobile.includes(visitorsSearch)) &&
-      (!visitorsDate || (v.timestamp && v.timestamp.startsWith(visitorsDate)))
-    );
-  };
-  const handleVisitorsPrint = () => { window.print(); };
-  const handleVisitorsDownloadPDF = async () => {
-    const { jsPDF } = await import("jspdf");
-    const html2canvas = (await import("html2canvas")).default;
-    const table = visitorsRef.current;
-    if (!table) return;
-    const canvas = await html2canvas(table, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "landscape" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pageWidth;
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfHeight);
-    const today = new Date();
-    const dateStr = today.toLocaleDateString("en-GB").replace(/\//g, "-");
-    pdf.save(`Visitors_${dateStr}.pdf`);
   };
 
   // Helper to get start/end of current week (Monday-Sunday)
@@ -995,9 +728,7 @@ export default function Management() {
     let data = [];
     if (active === "all") data = filterWeek(allLogs, "timestamp");
     else if (active === "staff") data = filterWeek(staffLogs, "timestamp");
-    else if (active === "dayscholar") data = filterWeek(dayscholarLogs, "timestamp");
-    else if (active === "hostellers") data = filterWeek(hostellerLogs, "timestamp");
-    else if (active === "visitors") data = filterWeek(visitorLogs, "timestamp");
+    else if (active === "students") data = filterWeek(studentLogs, "timestamp");
     setWeeklyData(data);
     setShowWeekly(true);
   };
@@ -1022,7 +753,7 @@ export default function Management() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600">Staff & Dayscholar Logs</p>
+                  <p className="text-sm text-blue-600">Staff & Students Logs</p>
                   <p className="text-2xl font-bold text-blue-800">{allLogs.length}</p>
                 </div>
                 <FileText className="h-8 w-8 text-blue-600" />
@@ -1035,7 +766,7 @@ export default function Management() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-green-600">Currently Inside</p>
-                  <p className="text-2xl font-bold text-green-800">{currentlyInside}</p>
+                  <p className="text-2xl font-bold text-green-800">{currentlyInside + studentCurrentlyInside}</p>
                 </div>
                 <User className="h-8 w-8 text-green-600" />
               </div>
@@ -1047,7 +778,7 @@ export default function Management() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-purple-600">Total Exits</p>
-                  <p className="text-2xl font-bold text-purple-800">{totalExits}</p>
+                  <p className="text-2xl font-bold text-purple-800">{totalExits + studentTotalExits}</p>
                 </div>
                 <User className="h-8 w-8 text-purple-600" />
               </div>
@@ -1059,7 +790,8 @@ export default function Management() {
         <div className="flex justify-end mb-4">
           <Button 
             onClick={() => {
-              fetchLogs();
+              console.log('=== REFRESH BUTTON CLICKED ===');
+              fetchZKtecoTransactions();
             }} 
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -1067,8 +799,29 @@ export default function Management() {
             {loading ? "Refreshing..." : "Refresh Logs"}
           </Button>
           <Button 
+            onClick={async () => {
+              console.log('=== TESTING BACKEND CONNECTION ===');
+              try {
+                // First test if backend server is running
+                const healthResponse = await fetch('http://127.0.0.1:3001/');
+                console.log('Backend health check status:', healthResponse.status);
+                
+                // Then test the transactions endpoint
+                const response = await fetch('http://127.0.0.1:3001/api/zkteco/transactions');
+                const result = await response.json();
+                console.log('Backend transactions test result:', result);
+              } catch (error) {
+                console.error('Backend test failed:', error);
+              }
+            }} 
+            className="bg-green-600 hover:bg-green-700 text-white ml-2"
+          >
+            Test Backend
+          </Button>
+          <Button 
             onClick={() => {
               console.log('Current staff logs:', staffLogs);
+              console.log('Current student logs:', studentLogs);
               console.log('Current all logs:', allLogs);
             }} 
             className="bg-gray-600 hover:bg-gray-700 text-white ml-2"
@@ -1112,21 +865,21 @@ export default function Management() {
         </div>
       </>
     );
-  } else if (active === "dayscholar") {
+  } else if (active === "students") {
     TableComponent = () => (
       <>
         <div className="flex flex-row gap-6 mb-6 w-full justify-center">
           <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
             <div className="text-lg font-semibold text-blue-700">Total Entries</div>
-            <div className="text-2xl font-bold mt-2">{todayDayscholarLogs.filter(log => log.in && !log.out).length}</div>
+            <div className="text-2xl font-bold mt-2">{studentTotalEntries}</div>
           </div>
           <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
             <div className="text-lg font-semibold text-blue-700">Total Exits</div>
-            <div className="text-2xl font-bold mt-2">{todayDayscholarLogs.filter(log => log.out).length}</div>
+            <div className="text-2xl font-bold mt-2">{studentTotalExits}</div>
           </div>
           <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
             <div className="text-lg font-semibold text-blue-700">Currently Inside</div>
-            <div className="text-2xl font-bold mt-2">{todayDayscholarLogs.filter(log => log.in && !log.out).length - todayDayscholarLogs.filter(log => log.out).length}</div>
+            <div className="text-2xl font-bold mt-2">{studentCurrentlyInside}</div>
           </div>
         </div>
         <SearchBar
@@ -1139,74 +892,7 @@ export default function Management() {
           onWeekly={handleShowWeekly}
         />
         <div ref={tableRef} className="print:bg-white">
-          <StaffLogsTable logs={filterStudentLogs(todayDayscholarLogs)} />
-        </div>
-      </>
-    );
-  } else if (active === "hostellers") {
-    TableComponent = () => (
-      <>
-        <div className="flex flex-row gap-6 mb-6 w-full justify-center">
-          <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
-            <div className="text-lg font-semibold text-blue-700">Total Entries</div>
-            <div className="text-2xl font-bold mt-2">
-              {studentType === "outing" 
-                ? filterOutingLogs(todayHostellerLogs).filter(log => log.in && !log.out).length
-                : filterHomeVisitingLogs(todayHostellerLogs).filter(log => log.in && !log.out).length
-              }
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
-            <div className="text-lg font-semibold text-blue-700">Total Exits</div>
-            <div className="text-2xl font-bold mt-2">
-              {studentType === "outing" 
-                ? filterOutingLogs(todayHostellerLogs).filter(log => log.out).length
-                : filterHomeVisitingLogs(todayHostellerLogs).filter(log => log.out).length
-              }
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6 flex-1 min-w-[180px] text-center">
-            <div className="text-lg font-semibold text-blue-700">Currently Inside</div>
-            <div className="text-2xl font-bold mt-2">
-              {studentType === "outing" 
-                ? filterOutingLogs(todayHostellerLogs).filter(log => log.in && !log.out).length - filterOutingLogs(todayHostellerLogs).filter(log => log.out).length
-                : filterHomeVisitingLogs(todayHostellerLogs).filter(log => log.in && !log.out).length - filterHomeVisitingLogs(todayHostellerLogs).filter(log => log.out).length
-              }
-            </div>
-          </div>
-        </div>
-        <SearchBar
-          search={search}
-          setSearch={setSearch}
-          date={date}
-          setDate={setDate}
-          onClear={handleClearFilters}
-          onDownloadPDF={handleDownloadPDF}
-          onWeekly={handleShowWeekly}
-        />
-        <div ref={tableRef} className="print:bg-white">
-          {studentType === "outing" ? (
-            <OutingLogsTable logs={filterOutingLogs(todayHostellerLogs)} />
-          ) : (
-            <HomeVisitingLogsTable logs={filterHomeVisitingLogs(todayHostellerLogs)} />
-          )}
-        </div>
-      </>
-    );
-  } else if (active === "visitors") {
-    TableComponent = () => (
-      <>
-        <VisitorsSearchBar
-          search={visitorsSearch}
-          setSearch={setVisitorsSearch}
-          date={visitorsDate}
-          setDate={setVisitorsDate}
-          onClear={() => { setVisitorsSearch(""); setVisitorsDate(""); }}
-          onDownloadPDF={handleVisitorsDownloadPDF}
-          onWeekly={handleShowWeekly}
-        />
-        <div ref={visitorsRef} className="print:bg-white">
-          <VisitorsTable visitors={filterVisitors(visitorLogs)} />
+          <StudentLogsTable logs={filterStudentLogs(studentLogs)} />
         </div>
       </>
     );
@@ -1222,15 +908,7 @@ export default function Management() {
           <div ref={weeklyRef}>
             {active === "all" && <AllLogsTable logs={weeklyData} />}
             {active === "staff" && <StaffLogsTable logs={weeklyData} />}
-            {active === "dayscholar" && <StaffLogsTable logs={weeklyData} />}
-            {active === "hostellers" && (
-              studentType === "outing" ? (
-                <OutingLogsTable logs={weeklyData} />
-              ) : (
-                <HomeVisitingLogsTable logs={weeklyData} />
-              )
-            )}
-            {active === "visitors" && <VisitorsTable visitors={weeklyData} />}
+            {active === "students" && <StudentLogsTable logs={weeklyData} />}
           </div>
           <div className="flex justify-end mt-6">
             <button className="bg-green-600 hover:bg-green-700 text-white rounded shadow px-6 py-2 font-semibold" onClick={handleWeeklyDownloadPDF}>Download PDF</button>
@@ -1242,7 +920,7 @@ export default function Management() {
 
   return (
     <div className="flex min-h-screen bg-blue-50 font-poppins">
-      <Sidebar active={active} setActive={setActive} studentType={studentType} setStudentType={setStudentType} />
+      <Sidebar active={active} setActive={setActive} />
       <div className="flex-1 flex flex-col">
         <header className="flex items-center justify-between bg-white shadow p-4 mb-8 print:hidden">
           <h1 className="text-3xl font-bold text-blue-700 ml-4">Management Dashboard</h1>

@@ -1,8 +1,6 @@
 const express = require('express');
-const path = require('path');
-const dotenv = require('dotenv');
-const router = require('./routes');
 const cors = require('cors');
+const dotenv = require('dotenv');
 
 dotenv.config();
 
@@ -26,13 +24,23 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use('/api', router);
-
+// Simple test route
 app.get('/', (req, res) => {
-  res.send('Backend is running...');
+  res.send('Simple server is running...');
 });
 
-const PORT = 3001; // Force port to be 3001
+// Test EasyTime Pro route
+app.post('/api/easytime/add-employee', (req, res) => {
+  console.log('Received employee data:', req.body);
+  res.json({ success: true, message: 'Employee added successfully' });
+});
+
+app.delete('/api/easytime/delete-employee/:empCode', (req, res) => {
+  console.log('Deleting employee:', req.params.empCode);
+  res.json({ success: true, message: 'Employee deleted successfully' });
+});
+
+const PORT = 3001;
 
 // Add error handling
 process.on('uncaughtException', (err) => {
@@ -44,7 +52,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Simple server running on port ${PORT}`);
   console.log('Press Ctrl+C to stop');
 });
 

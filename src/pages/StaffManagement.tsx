@@ -1,33 +1,33 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { db } from "../lib/firebase";
 import { ref, set, remove } from "firebase/database";
 
 // Department mapping with IDs for EasyTime Pro
 const departments = [
   { id: 1, name: "Department" },
-  { id: 2, name: "CSE" },
-  { id: 4, name: "ECE" },
-  { id: 5, name: "MECH" },
-  { id: 6, name: "CIVIL" },
-  { id: 7, name: "IT" },
-  { id: 8, name: "AIML" },
-  { id: 9, name: "CYBER SECURITY" },
-  { id: 10, name: "AIDS" },
-  { id: 11, name: "EEE" },
+  { id: 6, name: "CSE" },
+  { id: 7, name: "ECE" },
+  { id: 8, name: "MECH" },
+  { id: 9, name: "CIVIL" },
+  { id: 10, name: "IT" },
+  { id: 11, name: "AIML" },
+  { id: 12, name: "CYBER SECURITY" },
+  { id: 13, name: "AIDS" },
+  { id: 14, name: "EEE" },
 ];
 
 // Position mapping with IDs for EasyTime Pro
 const positions = [
   { id: 1, name: "Position" },
-  { id: 13, name: "Non teaching" },
-  { id: 5, name: "Principal" },
-  { id: 6, name: "CEO" },
-  { id: 7, name: "DEAN" },
-  { id: 8, name: "HOD" },
-  { id: 9, name: "Proffessor" },
-  { id: 10, name: "ASP" },
-  { id: 11, name: "AP" },
-  { id: 12, name: "LA" }
+  { id: 16, name: "Non teaching" },
+  { id: 8, name: "Principal" },
+  { id: 9, name: "CEO" },
+  { id: 10, name: "DEAN" },
+  { id: 11, name: "HOD" },
+  { id: 12, name: "Proffessor" },
+  { id: 13, name: "ASP" },
+  { id: 14, name: "AP" },
+  { id: 15, name: "LA" }
 ];
 
 // Area mapping with IDs for EasyTime Pro
@@ -44,47 +44,6 @@ const StaffManagement: React.FC = () => {
   const [removeId, setRemoveId] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
-
-  // Camera modal state
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraError, setCameraError] = useState("");
-
-  const openCamera = (staffId: string) => {
-    setCurrentStaffId(staffId);
-    setCameraOpen(true);
-    setCameraError("");
-    navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
-      setStream(s);
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-        videoRef.current.play();
-      }
-    }).catch(() => setCameraError("Camera not available or permission denied."));
-  };
-
-  const closeCamera = () => {
-    setCameraOpen(false);
-    setCurrentStaffId(null);
-    if (stream) stream.getTracks().forEach(track => track.stop());
-  };
-
-  const captureFace = async () => {
-    if (videoRef.current && canvasRef.current && currentStaffId) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, 320, 240);
-        const dataUrl = canvasRef.current.toDataURL('image/png');
-        // Save to Firebase
-        await set(ref(db, `Attendance_Log_staffs/${currentStaffId}/face`), dataUrl);
-        setStatus({ type: 'success', message: 'Face captured and saved!' });
-        closeCamera();
-      }
-    }
-  };
 
   const showStatus = (type: 'success' | 'error' | 'info', message: string) => {
     setStatus({ type, message });
@@ -139,12 +98,11 @@ const StaffManagement: React.FC = () => {
 
       if (result.success) {
         // If successful, also add to Firebase
-        await set(ref(db, `Attendance_Log_staffs/${staffId.trim()}`), {
+        await set(ref(db, `staff/${staffId.trim()}`), {
           username: staffId.trim(),
           name: name.trim(),
           department: departments.find(d => d.id === department)?.name || 'Unknown',
           position: positions.find(p => p.id === position)?.name || 'Unknown',
-          captureStatus: "Not Captured",
           easyTimeProId: result.data?.id || null
         });
 
@@ -196,7 +154,7 @@ const StaffManagement: React.FC = () => {
 
       if (result.success) {
         // If successful, also remove from Firebase
-        await remove(ref(db, `Attendance_Log_staffs/${removeId.trim()}`));
+        await remove(ref(db, `staff/${removeId.trim()}`));
         showStatus('success', 'Staff removed successfully from both EasyTime Pro and Firebase!');
         setRemoveId("");
       } else {
@@ -342,28 +300,6 @@ const StaffManagement: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Camera Modal */}
-      {cameraOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 24px #0003', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <h3 style={{ fontWeight: 700, color: '#1848c1', marginBottom: 12 }}>Capture Face</h3>
-            <div style={{ color: '#2563eb', marginBottom: 8, fontWeight: 500, fontSize: 15 }}>
-              For best results, ensure your face is well-lit and clearly visible.
-            </div>
-            {cameraError ? (
-              <div style={{ color: 'red', margin: 16 }}>{cameraError}</div>
-            ) : (
-              <video ref={videoRef} width={320} height={240} autoPlay style={{ borderRadius: 8, background: '#000' }} />
-            )}
-            <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
-            <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
-              <button onClick={captureFace} style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', fontWeight: 500, fontSize: 15 }}>Capture</button>
-              <button onClick={closeCamera} style={{ background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: 6, padding: '8px 18px', fontWeight: 500, fontSize: 15 }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

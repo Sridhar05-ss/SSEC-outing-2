@@ -181,6 +181,7 @@ class EasyTimeProAPI {
       if (!this.accessToken) {
         throw new Error('Not authenticated');
       }
+      console.log('Making request to EasyTime Pro API...');
       const response = await this.makeRequest(`/iclock/api/transactions/?limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -188,6 +189,8 @@ class EasyTimeProAPI {
           Authorization: `Token ${this.accessToken}`,
         },
       });
+      
+      console.log('EasyTime Pro API response:', JSON.stringify(response, null, 2));
       
       return {
         success: true,

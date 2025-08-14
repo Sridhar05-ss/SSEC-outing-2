@@ -5,15 +5,15 @@ import { ref, set, remove } from "firebase/database";
 // Department mapping with IDs for EasyTime Pro (same as StaffManagement)
 const departments = [
   { id: 1, name: "Department" },
-  { id: 2, name: "CSE" },
-  { id: 4, name: "ECE" },
-  { id: 5, name: "MECH" },
-  { id: 6, name: "CIVIL" },
-  { id: 7, name: "IT" },
-  { id: 8, name: "AIML" },
-  { id: 9, name: "CYBER SECURITY" },
-  { id: 10, name: "AIDS" },
-  { id: 11, name: "EEE" }
+  { id: 6, name: "CSE" },
+  { id: 7, name: "ECE" },
+  { id: 8, name: "MECH" },
+  { id: 9, name: "CIVIL" },
+  { id: 10, name: "IT" },
+  { id: 11, name: "AIML" },
+  { id: 12, name: "CYBER SECURITY" },
+  { id: 13, name: "AIDS" },
+  { id: 14, name: "EEE" },
 ];
 
 // Position mapping for students (Dayscholar and Hosteller)
@@ -97,8 +97,8 @@ const StudentManagement: React.FC = () => {
       if (result.success) {
                  // If successful, also add to Firebase
          await set(ref(db, `students/${departments.find(d => d.id === department)?.name || 'Unknown'}/${studentId.trim()}`), {
-           username: studentId.trim(),
-           Name: name.trim(),
+           emp_code: studentId.trim(),
+           first_name: name.trim(),
            department: departments.find(d => d.id === department)?.name || 'Unknown',
            position: positions.find(p => p.id === position)?.name || 'Unknown',
            registernumber: register.trim(),

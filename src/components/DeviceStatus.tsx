@@ -12,10 +12,11 @@ const DeviceStatus: React.FC<DeviceStatusProps> = ({ className = '' }) => {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
+    // Only check once on component mount, not continuously
     checkDeviceStatus();
-    // Check device status every 30 seconds
-    const interval = setInterval(checkDeviceStatus, 30000);
-    return () => clearInterval(interval);
+    // Removed automatic polling to prevent continuous API calls
+    // const interval = setInterval(checkDeviceStatus, 30000);
+    // return () => clearInterval(interval);
   }, []);
 
   const checkDeviceStatus = async () => {

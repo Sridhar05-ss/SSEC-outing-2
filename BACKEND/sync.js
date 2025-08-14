@@ -1,23 +1,14 @@
 // sync.js
-const firebase = require('firebase/app');
-const firestore = require('firebase/firestore');
 const { getAttendanceLogs } = require('./zkteco');
+const { database } = require('./firebase-backend/firebaseConfig');
+const { ref, push } = require('firebase/database');
 require('dotenv').config();
-
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-};
-
-const app = firebase.initializeApp(firebaseConfig);
-const db = firestore.getFirestore(app);
 
 async function syncToFirebase() {
   try {
     const logs = await getAttendanceLogs();
     for (const log of logs) {
-      await firestore.addDoc(firestore.collection(db, 'attendance'), log);
+      await push(ref(database, 'attendance'), log);
     }
     console.log('✅ Attendance logs synced to Firebase.');
   } catch (err) {
