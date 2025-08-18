@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 console.log('🚀 Starting Railway deployment...');
+console.log(`📡 Environment PORT: ${process.env.PORT || 'not set (using 3001)'}`);
+console.log(`🔧 Node Environment: ${process.env.NODE_ENV || 'development'}`);
 
 // Check if dist directory exists (should be built by Railway)
 const distPath = path.join(__dirname, 'dist');
@@ -74,15 +76,27 @@ if (fs.existsSync(distPath) && fs.existsSync(indexPath)) {
 
 // Start the server
 console.log('🌐 Starting server...');
-const serverProcess = spawn('bun', ['BACKEND/server.js'], {
+console.log('📝 Command: node BACKEND/server.js');
+
+// Use node instead of bun for better compatibility
+const serverProcess = spawn('node', ['BACKEND/server.js'], {
   stdio: 'inherit',
-  detached: false
+  detached: false,
+  env: {
+    ...process.env,
+    NODE_ENV: process.env.NODE_ENV || 'production'
+  }
 });
 
 // Handle server process
 serverProcess.on('close', (code) => {
   console.log(`🌐 Server process exited with code ${code}`);
   process.exit(code);
+});
+
+serverProcess.on('error', (err) => {
+  console.error('❌ Failed to start server:', err);
+  process.exit(1);
 });
 
 // Handle process termination
@@ -97,3 +111,8 @@ process.on('SIGTERM', () => {
   serverProcess.kill('SIGTERM');
   process.exit(0);
 });
+
+// Keep the process alive
+setInterval(() => {
+  // Keep alive for Railway
+}, 10000);

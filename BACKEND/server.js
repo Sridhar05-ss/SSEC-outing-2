@@ -47,7 +47,7 @@ if (fs.existsSync(distPath)) {
 
 const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
 
-// Health check endpoint
+// Enhanced health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -55,7 +55,17 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     port: PORT,
     environment: process.env.NODE_ENV || 'development',
-    distExists: fs.existsSync(distPath)
+    distExists: fs.existsSync(distPath),
+    uptime: process.uptime()
+  });
+});
+
+// Root endpoint for Railway healthcheck
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'SSEC Outing Management API is running',
+    health: '/health'
   });
 });
 
