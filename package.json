@@ -12,8 +12,8 @@
     "server": "node BACKEND/server.js",
     "test-api": "node BACKEND/test-easytime-api.js",
     "start": "node BACKEND/server.js",
-    "start:railway": "node start-railway.js",
-    "pre-build": "node pre-build.js",
+    "start:railway": "bun start-railway-simple.js",
+    "pre-build": "bun pre-build.js",
     "build:check": "npm run build && echo 'Build completed successfully'"
   },
   "dependencies": {

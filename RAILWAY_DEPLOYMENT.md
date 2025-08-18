@@ -55,26 +55,26 @@ The backend is configured to allow requests from:
 ### **Step 4: Deployment Process**
 
 1. **Railway will automatically:**
-   - Install dependencies (`npm install`)
-   - Run the Railway start script (`node start-railway.js`)
-   - Create pre-build frontend immediately
+   - Install dependencies (`bun install`)
+   - Build frontend during build phase (`bun run build`)
+   - Run the Railway start script (`bun start-railway-simple.js`)
    - Start server immediately (health check passes right away)
-   - Build full frontend in background
+   - Use pre-built frontend from build phase
 
 2. **Health Check:**
    - Railway will check `/health` endpoint
    - Should return JSON with status and build info
-   - Frontend will be served at `/` endpoint (loading page initially)
-   - Reduced timeout to 60 seconds (server starts immediately)
+   - Frontend will be served at `/` endpoint
+   - Timeout set to 120 seconds for Bun runtime
 
 ### **Step 5: Troubleshooting**
 
 #### **Common Issues:**
 
 1. **Health Check Failures:**
-   - **Cause**: Build process taking too long or failing
-   - **Solution**: Server starts immediately with pre-build frontend
-   - **Check**: Health check passes in under 60 seconds
+   - **Cause**: Server not starting properly or runtime issues
+   - **Solution**: Fixed PORT variable definition and Bun compatibility
+   - **Check**: Health check passes in under 120 seconds
 
 2. **White Screen / "Backend is running" message:**
    - **Cause**: Backend is serving instead of frontend

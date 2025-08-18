@@ -4,20 +4,28 @@ const path = require('path');
 
 console.log('🚀 Starting Railway deployment...');
 
+// Detect available runtime
+const isBun = process.versions.bun !== undefined;
+const runtime = isBun ? 'bun' : 'node';
+const packageManager = isBun ? 'bun' : 'npm';
+
+console.log(`🔧 Detected runtime: ${runtime}`);
+console.log(`📦 Using package manager: ${packageManager}`);
+
 // Create pre-build frontend immediately
 console.log('📦 Creating pre-build frontend...');
 require('./pre-build.js');
 
 // Start the server immediately
 console.log('🌐 Starting server immediately...');
-const serverProcess = spawn('node', ['BACKEND/server.js'], {
+const serverProcess = spawn(runtime, ['BACKEND/server.js'], {
   stdio: 'inherit',
   detached: false
 });
 
 // Build frontend in background
 console.log('📦 Building frontend in background...');
-const buildProcess = spawn('npm', ['run', 'build'], {
+const buildProcess = spawn(packageManager, ['run', 'build'], {
   stdio: 'pipe',
   detached: false
 });

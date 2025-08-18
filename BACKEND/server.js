@@ -45,6 +45,8 @@ if (fs.existsSync(distPath)) {
   console.warn(`⚠️ Static files directory not found: ${distPath}`);
 }
 
+const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -118,8 +120,6 @@ app.get('*', (req, res) => {
     `);
   }
 });
-
-const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
 
 // Add error handling
 process.on('uncaughtException', (err) => {
