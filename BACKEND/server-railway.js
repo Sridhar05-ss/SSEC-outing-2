@@ -5,6 +5,24 @@ const fs = require('fs');
 
 const app = express();
 
+// Get PORT from Railway environment (CRITICAL for Railway)
+const PORT = process.env.PORT || 3000;
+
+console.log(`🚀 Starting server on port ${PORT}`);
+console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+// CRITICAL: Health check endpoint FIRST (before any middleware)
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime()
+  });
+});
+
 // Enable CORS for all origins (Railway requirement)
 app.use(cors({
   origin: true,
@@ -13,12 +31,6 @@ app.use(cors({
 
 // Parse JSON
 app.use(express.json());
-
-// Get PORT from Railway environment (CRITICAL for Railway)
-const PORT = process.env.PORT || 3000;
-
-console.log(`🚀 Starting server on port ${PORT}`);
-console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 // Setup static files FIRST (before any routes)
 function setupStaticFiles() {
@@ -65,23 +77,6 @@ function setupStaticFiles() {
 // Setup static files immediately
 setupStaticFiles();
 
-// Health check endpoint (Railway requirement)
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime(),
-    services: {
-      zkteco: global.zktecoLoaded || false,
-      easytime: global.easytimeLoaded || false,
-      firebase: global.firebaseLoaded || false
-    }
-  });
-});
-
 // Root endpoint for Railway health check (responds immediately)
 app.get('/', (req, res) => {
   // Check if we have static files, if not return JSON
@@ -114,11 +109,12 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
   console.log(`🌐 Root endpoint available at: http://localhost:${PORT}/`);
   console.log('🚀 Server is ready to accept connections');
+  console.log('✅ Health check should work immediately');
   
   // Load external dependencies in background after server starts
   setTimeout(() => {
     loadExternalDependencies();
-  }, 1000);
+  }, 2000); // Increased delay to ensure health check works first
 });
 
 // Load external dependencies in background
