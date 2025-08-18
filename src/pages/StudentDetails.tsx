@@ -13,6 +13,7 @@ interface Student {
   emp_code?: string;
   first_name?: string;
   position?: string;
+  easyTimeProId?: string;
 }
 
 interface StudentDetailsProps {
@@ -20,7 +21,7 @@ interface StudentDetailsProps {
 }
 
 const departments = [
-  "CSE", "ECE", "MECH", "CIVIL", "IT", "AIML", "CYBER SECURITY", "AIDS", "EEE", "DCSE", "DECE", "DMECH"
+  "CSE", "ECE", "MECH", "CIVIL", "IT", "AIML", "CYBER SECURITY", "AIDS", "EEE", "DCSE", "DECE", "DMECH", "DIPLOMA", "ADMIN"
 ];
 
 const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
@@ -54,10 +55,92 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
     setEditModal({ open: true, student });
   };
 
+  // Helper function to send student data to /easytime/add-employee
+  const postStudentToEasytime = async (studentData: {
+    username?: string;
+    name: string;
+    department: string;
+    position: string;
+    registernumber?: string;
+    parentphone?: string;
+    birthday?: string;
+    easyTimeProId?: string;
+  }) => {
+    try {
+      // Convert department name to ID
+      const departmentMap: { [key: string]: number } = {
+        "CSE": 6, "ECE": 7, "MECH": 8, "CIVIL": 9, "IT": 10, 
+        "AIML": 11, "CYBER SECURITY": 12, "AIDS": 13, "EEE": 14,
+        "DIPLOMA": 15, "ADMIN": 16, "DCSE": 17, "DECE": 18, "DMECH": 19
+      };
+
+      // Convert position name to ID (for students)
+      const positionMap: { [key: string]: number } = {
+        "Dayscholar": 16, "Hosteller": 17, "DayScholar": 16
+      };
+
+      const departmentId = departmentMap[studentData.department] || 6; // Default to CSE
+      const positionId = positionMap[studentData.position] || 16; // Default to Dayscholar
+
+      if (studentData.easyTimeProId) {
+        // Update existing employee using PATCH method with easyTimeProId
+        const response = await fetch(`http://127.0.0.1:3001/api/easytime/update-employee/${studentData.easyTimeProId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            emp_code: studentData.username,
+            first_name: studentData.name,
+            department: departmentId,
+            position: positionId,
+            "aadhaar no": studentData.registernumber,
+            "contact no": studentData.parentphone,
+            "birthday": studentData.birthday,
+            area: [2], // Default area
+            area_code: "2",
+            area_name: "HO"
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to update student data: ${response.statusText}`);
+        }
+      } else {
+        // Add new employee if not found
+        const response = await fetch('http://127.0.0.1:3001/api/easytime/add-employee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            emp_code: studentData.username,
+            first_name: studentData.name,
+            department: departmentId,
+            position: positionId,
+            "aadhaar no": studentData.registernumber,
+            "contact no": studentData.parentphone,
+            "birthday": studentData.birthday,
+            area: [2], // Default area
+            area_code: "2",
+            area_name: "HO"
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to add student data: ${response.statusText}`);
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error posting student data to EasyTime Pro:', error);
+      return false;
+    }
+  };
+
   const handleEditSave = async () => {
     if (!editData.username || !editData.department) return;
     setSaving(true);
     try {
+      // Update Firebase
       await update(ref(db, `students/${editData.department}/${editData.username}`), {
         username: editData.username,
         Name: editData.name || editData.Name,
@@ -66,12 +149,31 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
         mode: editData.mode,
         password: editData.password
       });
-      alert("Student updated!");
+
+      // Post the same data to EasyTime Pro
+      const postSuccess = await postStudentToEasytime({
+        username: editData.username,
+        name: editData.name || editData.Name || '',
+        department: editData.department || '',
+        position: editData.mode || editData.position || 'Dayscholar',
+        registernumber: editData.password || '', // Using password field for DOB
+        parentphone: '', // Not available in current form
+        birthday: editData.password || '', // Using password field for DOB
+        easyTimeProId: editData.easyTimeProId || '' // Pass the existing ID if available
+      });
+
+      if (!postSuccess) {
+        alert("Warning: Student updated in Firebase but failed to update EasyTime Pro system.");
+      } else {
+        alert("Student updated successfully in both systems!");
+      }
+
       setEditModal({ open: false });
       setEditData({});
       fetchStudents();
     } catch (err) {
       alert("Failed to update student.");
+      console.error(err);
     }
     setSaving(false);
   };

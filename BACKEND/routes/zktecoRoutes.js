@@ -15,7 +15,8 @@ router.get('/test', (req, res) => {
 // Get ZKteco transactions
 router.get('/transactions', async (req, res) => {
   try {
-    console.log('Fetching ZKteco transactions...');
+    const { limit = 10000 } = req.query;
+    console.log(`Fetching ZKteco transactions with limit: ${limit}...`);
     
     // Authenticate if needed
     if (!easyTimeProAPI.accessToken) {
@@ -28,8 +29,8 @@ router.get('/transactions', async (req, res) => {
       }
     }
     
-    // Use the existing getTransactionLogs method
-    const txResult = await easyTimeProAPI.getTransactionLogs(500);
+    // Use the existing getTransactionLogs method with configurable limit
+    const txResult = await easyTimeProAPI.getTransactionLogs(parseInt(limit));
     if (!txResult.success) {
       return res.status(500).json({ 
         success: false, 
@@ -40,6 +41,8 @@ router.get('/transactions', async (req, res) => {
     console.log('ZKteco API response received');
     console.log('Full API response structure:', JSON.stringify(txResult, null, 2));
     console.log('ZKteco transactions count:', txResult.data?.data?.length || 0);
+    console.log('Requested limit:', limit);
+    console.log('Actual transactions retrieved:', txResult.data?.data?.length || 0);
     
     // Debug: Show sample transactions
     if (txResult.data?.data && txResult.data.data.length > 0) {
@@ -77,7 +80,13 @@ router.get('/transactions', async (req, res) => {
     res.json({
       success: true,
       data: transactions,
-      message: 'ZKteco transactions fetched successfully'
+      message: 'ZKteco transactions fetched successfully',
+      metadata: {
+        totalTransactions: transactions.length,
+        newTransactions: txResult.data?.newTransactions || 0,
+        cachedTransactions: txResult.data?.cachedTransactions || 0,
+        note: txResult.data?.note || null
+      }
     });
 
   } catch (error) {
@@ -104,6 +113,57 @@ router.get('/transactions', async (req, res) => {
         details: error.message
       });
     }
+  }
+});
+
+// Clear transaction cache
+router.delete('/cache', async (req, res) => {
+  try {
+    console.log('Clearing transaction cache...');
+    
+    // Clear the cache
+    easyTimeProAPI.transactionCache.clear();
+    await easyTimeProAPI.saveTransactionCache();
+    
+    res.json({
+      success: true,
+      message: 'Transaction cache cleared successfully'
+    });
+  } catch (error) {
+    console.error('Error clearing transaction cache:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear transaction cache'
+    });
+  }
+});
+
+// Get cache statistics
+router.get('/cache/stats', async (req, res) => {
+  try {
+    const cachedTransactions = easyTimeProAPI.getCachedTransactions();
+    
+    res.json({
+      success: true,
+      data: {
+        totalCachedTransactions: cachedTransactions.length,
+        cacheSize: JSON.stringify(cachedTransactions).length,
+        oldestTransaction: cachedTransactions.length > 0 ? 
+          cachedTransactions.reduce((oldest, current) => 
+            new Date(current.punch_time) < new Date(oldest.punch_time) ? current : oldest
+          ).punch_time : null,
+        newestTransaction: cachedTransactions.length > 0 ? 
+          cachedTransactions.reduce((newest, current) => 
+            new Date(current.punch_time) > new Date(newest.punch_time) ? current : newest
+          ).punch_time : null
+      }
+    });
+  } catch (error) {
+    console.error('Error getting cache stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cache statistics'
+    });
   }
 });
 

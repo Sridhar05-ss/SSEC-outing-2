@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../lib/firebase";
-import { ref, set, remove } from "firebase/database";
+import { ref, set, remove, get } from "firebase/database";
 
 // Department mapping with IDs for EasyTime Pro (same as StaffManagement)
 const departments = [
@@ -14,6 +14,10 @@ const departments = [
   { id: 12, name: "CYBER SECURITY" },
   { id: 13, name: "AIDS" },
   { id: 14, name: "EEE" },
+  { id: 16, name: "ADMIN" },
+  { id: 17, name: "DCSE" },
+  { id: 18, name: "DECE" },
+  { id: 19, name: "DMECH" },
 ];
 
 // Position mapping for students (Dayscholar and Hosteller)
@@ -146,8 +150,46 @@ const StudentManagement: React.FC = () => {
     
     setLoading(true);
     try {
-      // Remove from EasyTime Pro via backend API
-      const response = await fetch(`http://127.0.0.1:3001/api/easytime/delete-employee/${removeId.trim()}`, {
+      // First, find the student in Firebase to get the easyTimeProId
+      // We need to search through all departments
+      const departmentsRef = ref(db, 'students');
+      const departmentsSnapshot = await get(departmentsRef);
+      
+      let studentData = null;
+      let studentDepartment = null;
+      
+      if (departmentsSnapshot.exists()) {
+        const departments = departmentsSnapshot.val();
+        for (const [deptName, students] of Object.entries(departments)) {
+          if (students && typeof students === 'object') {
+            for (const [studentId, student] of Object.entries(students)) {
+              if (studentId === removeId.trim()) {
+                studentData = student;
+                studentDepartment = deptName;
+                break;
+              }
+            }
+            if (studentData) break;
+          }
+        }
+      }
+      
+      if (!studentData) {
+        showStatus('error', 'Student not found in Firebase.');
+        setLoading(false);
+        return;
+      }
+      
+      const easyTimeProId = studentData.easyTimeProId;
+      
+      if (!easyTimeProId) {
+        showStatus('error', 'Student does not have an EasyTime Pro ID. Cannot delete from EasyTime Pro.');
+        setLoading(false);
+        return;
+      }
+      
+      // Remove from EasyTime Pro via backend API using easyTimeProId
+      const response = await fetch(`http://127.0.0.1:3001/api/easytime/delete-employee/${easyTimeProId}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json'
@@ -158,9 +200,9 @@ const StudentManagement: React.FC = () => {
 
       if (result.success) {
         // If successful, also remove from Firebase
-        await remove(ref(db, `students/${departments.find(d => d.id === department)?.name || 'Unknown'}/${removeId.trim()}`));
+        await remove(ref(db, `students/${studentDepartment}/${removeId.trim()}`));
         showStatus('success', 'Student removed successfully from both EasyTime Pro and Firebase!');
-      setRemoveId("");
+        setRemoveId("");
       } else {
         showStatus('error', `Failed to remove student from EasyTime Pro: ${result.error}`);
       }

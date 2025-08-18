@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { zktecoAuth } from "../lib/zktecoAuth";
-import DeviceStatus from "../components/DeviceStatus";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -19,8 +18,6 @@ const Login = () => {
     try {
       const user = await zktecoAuth.authenticate(username, password);
       
-      console.log('Authentication successful:', user);
-      
       // Navigate based on user role
       if (user.role === "admin") {
         navigate("/admin");
@@ -31,7 +28,6 @@ const Login = () => {
       }
       
     } catch (error) {
-      console.error('Authentication error:', error);
       setError(error.message || "Authentication failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
@@ -42,7 +38,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       <div className="absolute inset-0" 
            style={{
-             backgroundImage: 'url(https://i.pinimg.com/1200x/06/46/06/064606d7bb91668ee0eac998d8e18139.jpg)',
+             backgroundImage: 'url(/modern-campus-bg.jpg)',
              backgroundSize: 'cover',
              backgroundPosition: 'center',
              backgroundRepeat: 'no-repeat',
@@ -137,10 +133,7 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Device Status */}
-          <div className="mt-6">
-            <DeviceStatus />
-          </div>
+
         </div>
       </div>
     </div>

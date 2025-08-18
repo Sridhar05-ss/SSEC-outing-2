@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "../lib/firebase";
-import { ref, set, remove } from "firebase/database";
+import { ref, set, remove, get } from "firebase/database";
 
 // Department mapping with IDs for EasyTime Pro
 const departments = [
@@ -14,6 +14,8 @@ const departments = [
   { id: 12, name: "CYBER SECURITY" },
   { id: 13, name: "AIDS" },
   { id: 14, name: "EEE" },
+  { id: 15, name: "DIPLOMA" },
+  { id: 16, name: "ADMIN" },
 ];
 
 // Position mapping with IDs for EasyTime Pro
@@ -27,7 +29,8 @@ const positions = [
   { id: 12, name: "Proffessor" },
   { id: 13, name: "ASP" },
   { id: 14, name: "AP" },
-  { id: 15, name: "LA" }
+  { id: 15, name: "LA" },
+  { id: 17, name: "COE HEAD" }
 ];
 
 // Area mapping with IDs for EasyTime Pro
@@ -142,8 +145,27 @@ const StaffManagement: React.FC = () => {
     
     setLoading(true);
     try {
-      // Remove from EasyTime Pro via backend API
-      const response = await fetch(`http://127.0.0.1:3001/api/easytime/delete-employee/${removeId.trim()}`, {
+      // First, get the staff data from Firebase to get the easyTimeProId
+      const staffRef = ref(db, `staff/${removeId.trim()}`);
+      const staffSnapshot = await get(staffRef);
+      
+      if (!staffSnapshot.exists()) {
+        showStatus('error', 'Staff member not found in Firebase.');
+        setLoading(false);
+        return;
+      }
+      
+      const staffData = staffSnapshot.val();
+      const easyTimeProId = staffData.easyTimeProId;
+      
+      if (!easyTimeProId) {
+        showStatus('error', 'Staff member does not have an EasyTime Pro ID. Cannot delete from EasyTime Pro.');
+        setLoading(false);
+        return;
+      }
+      
+      // Remove from EasyTime Pro via backend API using easyTimeProId
+      const response = await fetch(`http://127.0.0.1:3001/api/easytime/delete-employee/${easyTimeProId}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json'

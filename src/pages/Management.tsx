@@ -326,14 +326,14 @@ export default function Management() {
   const [studentLogs, setStudentLogs] = useState<StudentLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get today's date string (YYYY-MM-DD) - Set to current date 2025-08-14
-  const todayStr = "2025-08-14";
+  // Get today's date string (YYYY-MM-DD) - Automatically updated
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Fetch ZKteco transactions and build logs
   const fetchZKtecoTransactions = async () => {
     console.log('=== STARTING FETCH PROCESS ===');
     try {
-      const today = "2025-08-14"; // YYYY-MM-DD - Set to current date
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD - Automatically updated
       
       // Fetch transactions from backend (which calls ZKteco API)
       console.log('Fetching transactions from backend...');
@@ -357,7 +357,7 @@ export default function Management() {
       
       const transactions: ZKtecoTransaction[] = Array.isArray(result.data) ? result.data : [];
 
-      // Filter transactions for today only (2025-08-14)
+      // Filter transactions for today only (automatically updated)
       console.log('Filtering for date:', today);
       console.log('All transactions before filtering:', transactions.length);
       const todayTransactions = transactions.filter(transaction => {
@@ -370,6 +370,16 @@ export default function Management() {
 
       console.log('Today\'s ZKteco transactions:', todayTransactions);
       console.log('Total transactions found:', todayTransactions.length);
+      
+      // Log cache information if available
+      if (result.metadata) {
+        console.log('Cache information:', {
+          totalTransactions: result.metadata.totalTransactions,
+          newTransactions: result.metadata.newTransactions,
+          cachedTransactions: result.metadata.cachedTransactions,
+          note: result.metadata.note
+        });
+      }
       
       // Check for multiple transactions for ID 077
       const transactionsFor077 = todayTransactions.filter(t => t.emp_code === '077');

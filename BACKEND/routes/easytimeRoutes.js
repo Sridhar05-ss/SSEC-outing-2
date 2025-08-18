@@ -43,30 +43,52 @@ router.post('/authenticate', async (req, res) => {
 // GET /easytime/transactions - Fetch transactions from EasyTime Pro and enrich with Firebase data
 router.get('/transactions', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit || '200', 10);
+    // Increase the default limit significantly to handle more transactions
+    // EasyTime Pro typically supports much higher limits, let's try 10000
+    const limit = parseInt(req.query.limit || '10000', 10);
+    
+    // Add a maximum limit to prevent overwhelming the system
+    const maxLimit = 50000; // Maximum 50,000 transactions
+    const actualLimit = Math.min(limit, maxLimit);
+
+    console.log(`Fetching transactions with limit: ${actualLimit}`);
 
     // Authenticate if needed
     if (!easyTimeProAPI.accessToken) {
-      const authResult = await easyTimeProAPI.authenticate({ username: 'admin', password: 'Admin@123' });
+      const authResult = await easyTimeProAPI.authenticate({ 
+        username: 'admin', 
+        password: 'Admin@123' 
+      });
+      
       if (!authResult.success) {
-        return res.status(401).json({ success: false, error: 'Authentication failed: ' + authResult.error });
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication failed: ' + authResult.error
+        });
       }
     }
 
-    // Fetch transactions
-    const txResult = await easyTimeProAPI.getTransactionLogs(limit);
+    // Fetch transactions with the increased limit
+    const txResult = await easyTimeProAPI.getTransactionLogs(actualLimit);
     if (!txResult.success) {
       return res.status(500).json({ success: false, error: txResult.error || 'Failed to fetch transactions' });
     }
 
     const records = Array.isArray(txResult.data?.data) ? txResult.data.data : [];
+    
+    console.log(`Retrieved ${records.length} transactions from EasyTime Pro`);
+
+    // If we got fewer records than requested, log it for debugging
+    if (records.length < actualLimit && records.length < 100) {
+      console.warn(`Warning: Only ${records.length} transactions retrieved. This might indicate a server-side limit.`);
+    }
 
     // Enrich with Firebase name/department by emp_code
     const today = new Date().toISOString().slice(0, 10);
     const attendanceRefPath = `new_attend/${today}`; // for context only
 
     // Build a quick lookup from Firebase students and staff collections
-    const fbStaffRes = await firebaseDB.getData('Attendance_Log_staffs');
+    const fbStaffRes = await firebaseDB.getData('staff');
     const fbStudentsRes = await firebaseDB.getData('students');
 
     const empCodeToInfo = new Map();
@@ -90,15 +112,36 @@ router.get('/transactions', async (req, res) => {
 
     // Reduce to desired fields and attach name/department
     const simplified = records.map(r => {
-      const basic = { emp_code: r.emp_code, punch_time: r.punch_time };
-      const extra = empCodeToInfo.get(r.emp_code) || { name: 'Unknown', department: 'Unknown' };
+      const basic = { 
+        id: r.id,
+        emp_code: r.emp_code, 
+        punch_time: r.punch_time,
+        punch_state: r.punch_state,
+        device_name: r.device_name || 'Unknown Device',
+        device_id: r.device_id,
+        area_name: r.area_name || 'Unknown Area'
+      };
+      const extra = empCodeToInfo.get(r.emp_code) || { name: r.emp_code, department: 'Unknown' };
       return { ...basic, ...extra };
     });
 
-    res.json({ success: true, data: simplified });
+    res.json({ 
+      success: true, 
+      data: simplified,
+      metadata: {
+        requestedLimit: limit,
+        actualLimit: actualLimit,
+        retrievedCount: records.length,
+        timestamp: new Date().toISOString()
+      }
+    });
   } catch (error) {
     console.error('Error fetching transactions:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
@@ -165,8 +208,59 @@ router.post('/add-employee', async (req, res) => {
   }
 });
 
-// DELETE /easytime/delete-employee/:empCode - Delete a staff member from EasyTime Pro
-router.delete('/delete-employee/:empCode', async (req, res) => {
+// DELETE /easytime/delete-employee/:id - Delete a staff member from EasyTime Pro
+router.delete('/delete-employee/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee ID is required'
+      });
+    }
+
+    // Authenticate if not already authenticated
+    if (!easyTimeProAPI.accessToken) {
+      const authResult = await easyTimeProAPI.authenticate({ 
+        username: 'admin', 
+        password: 'Admin@123' 
+      });
+      
+      if (!authResult.success) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication failed: ' + authResult.error
+        });
+      }
+    }
+
+    // Delete staff member from EasyTime Pro using the ID directly
+    const result = await easyTimeProAPI.deleteStaffMemberById(id);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Staff member deleted from EasyTime Pro successfully',
+        data: result.data
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'Failed to delete staff member from EasyTime Pro'
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting staff member from EasyTime Pro:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// GET /easytime/get-employee/:empCode - Get employee by employee code
+router.get('/get-employee/:empCode', async (req, res) => {
   try {
     const { empCode } = req.params;
 
@@ -192,23 +286,74 @@ router.delete('/delete-employee/:empCode', async (req, res) => {
       }
     }
 
-    // Delete staff member from EasyTime Pro
-    const result = await easyTimeProAPI.deleteStaffMember(empCode);
+    // Get employee from EasyTime Pro
+    const result = await easyTimeProAPI.getEmployeeByCode(empCode);
 
     if (result.success) {
       res.json({
         success: true,
-        message: 'Staff member deleted from EasyTime Pro successfully',
+        data: result.data
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: result.error || 'Employee not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error getting employee from EasyTime Pro:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// PATCH /easytime/update-employee/:id - Update employee by ID
+router.patch('/update-employee/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee ID is required'
+      });
+    }
+
+    // Authenticate if not already authenticated
+    if (!easyTimeProAPI.accessToken) {
+      const authResult = await easyTimeProAPI.authenticate({ 
+        username: 'admin', 
+        password: 'Admin@123' 
+      });
+      
+      if (!authResult.success) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication failed: ' + authResult.error
+        });
+      }
+    }
+
+    // Update employee in EasyTime Pro
+    const result = await easyTimeProAPI.updateStaffMember(id, updateData);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Employee updated in EasyTime Pro successfully',
         data: result.data
       });
     } else {
       res.status(500).json({
         success: false,
-        error: result.error || 'Failed to delete staff member from EasyTime Pro'
+        error: result.error || 'Failed to update employee in EasyTime Pro'
       });
     }
   } catch (error) {
-    console.error('Error deleting staff member from EasyTime Pro:', error);
+    console.error('Error updating employee in EasyTime Pro:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

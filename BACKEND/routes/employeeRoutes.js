@@ -157,7 +157,7 @@ router.delete('/:staffId', requireAuth, async (req, res) => {
 // GET /employees/transactions - Get transaction logs
 router.get('/transactions', requireAuth, async (req, res) => {
   try {
-    const { limit = 100 } = req.query;
+    const { limit = 10000 } = req.query;
     const transactions = await getTransactionLogs(parseInt(limit));
     
     res.json({

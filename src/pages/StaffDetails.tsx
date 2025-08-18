@@ -20,10 +20,11 @@ type Staff = {
   position: string; // Changed from role to position
   captureStatus?: string;
   face?: string;
+  easyTimeProId?: string;
 };
 
 const departments = [
-  "CSE", "ECE", "MECH", "CIVIL", "IT", "AIML", "CYBER SECURITY", "AIDS", "EEE", "DCSE", "DECE", "DMECH"
+  "CSE", "ECE", "MECH", "CIVIL", "IT", "AIML", "CYBER SECURITY", "AIDS", "EEE", "DCSE", "DECE", "DMECH", "ADMIN"
 ];
 
 const StaffDetails: React.FC = () => {
@@ -62,21 +63,69 @@ const StaffDetails: React.FC = () => {
     name: string;
     department: string;
     position: string;
+    easyTimeProId?: string;
   }) => {
     try {
-      const response = await fetch('/easytime/add-employee', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(staffData)
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to post staff data: ${response.statusText}`);
+      // Convert department name to ID
+      const departmentMap: { [key: string]: number } = {
+        "CSE": 6, "ECE": 7, "MECH": 8, "CIVIL": 9, "IT": 10, 
+        "AIML": 11, "CYBER SECURITY": 12, "AIDS": 13, "EEE": 14,
+        "DIPLOMA": 15, "ADMIN": 16, "DCSE": 17, "DECE": 18, "DMECH": 19
+      };
+
+      // Convert position name to ID
+      const positionMap: { [key: string]: number } = {
+        "Non teaching": 16, "Principal": 8, "CEO": 9, "DEAN": 10,
+        "HOD": 11, "Proffessor": 12, "ASP": 13, "AP": 14, "LA": 15, "COE HEAD": 17
+      };
+
+      const departmentId = departmentMap[staffData.department] || 6; // Default to CSE
+      const positionId = positionMap[staffData.position] || 16; // Default to Non teaching
+
+      if (staffData.easyTimeProId) {
+        // Update existing employee using PATCH method with easyTimeProId
+        const response = await fetch(`http://127.0.0.1:3001/api/easytime/update-employee/${staffData.easyTimeProId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            emp_code: staffData.username,
+            first_name: staffData.name,
+            department: departmentId,
+            position: positionId,
+            area: [2], // Default area
+            area_code: "2",
+            area_name: "HO"
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to update staff data: ${response.statusText}`);
+        }
+      } else {
+        // Add new employee if not found
+        const response = await fetch('http://127.0.0.1:3001/api/easytime/add-employee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            emp_code: staffData.username,
+            first_name: staffData.name,
+            department: departmentId,
+            position: positionId,
+            area: [2], // Default area
+            area_code: "2",
+            area_name: "HO"
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to add staff data: ${response.statusText}`);
+        }
       }
       return true;
     } catch (error) {
-      console.error('Error posting staff data to /easytime/add-employee:', error);
+      console.error('Error posting staff data to EasyTime Pro:', error);
       return false;
     }
   };
@@ -99,7 +148,8 @@ const StaffDetails: React.FC = () => {
         username: editData.username,
         name: editData.name || '',
         department: editData.department || '',
-        position: editData.position || '' // Changed from role to position
+        position: editData.position || '', // Changed from role to position
+        easyTimeProId: editData.easyTimeProId || editData.id // Use easyTimeProId if available, fallback to id
       });
 
       if (!postSuccess) {
