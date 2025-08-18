@@ -12,8 +12,10 @@
     "server": "node BACKEND/server.js",
     "test-api": "node BACKEND/test-easytime-api.js",
     "start": "node BACKEND/server.js",
-    "start:railway": "node start-railway-simple.js",
-    "build:check": "npm run build && echo 'Build completed successfully'"
+    "start:railway": "node BACKEND/server-railway.js",
+    "build:check": "npm run build && echo 'Build completed successfully'",
+    "test:server": "node test-server.js",
+    "test:railway": "node test-railway-server.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

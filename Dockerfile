@@ -39,8 +39,8 @@ COPY BACKEND ./BACKEND
 # Copy pre-build script
 COPY pre-build.js ./
 
-# Copy start script
-COPY start-railway.js ./
+# Copy start script (if needed)
+COPY start-railway-minimal.js ./
 
 # Expose port
 EXPOSE 3001

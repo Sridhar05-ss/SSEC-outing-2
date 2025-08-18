@@ -9,7 +9,7 @@ const firebaseRealtimeDB = require('./firebaseRealtimeDB');
 
 // Create Express app
 const app = express();
-const PORT = process.env.FIREBASE_PORT || 3002;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors({
@@ -276,7 +276,7 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Firebase Backend Server is running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`API documentation: http://localhost:${PORT}/`);
