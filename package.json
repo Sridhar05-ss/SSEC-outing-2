@@ -10,7 +10,10 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "server": "node BACKEND/server.js",
-    "test-api": "node BACKEND/test-easytime-api.js"
+    "test-api": "node BACKEND/test-easytime-api.js",
+    "start": "node BACKEND/server.js",
+    "start:railway": "npm run build && node BACKEND/server.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

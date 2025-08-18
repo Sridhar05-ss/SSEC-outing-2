@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../lib/firebase";
 import { ref, get, set, update } from "firebase/database";
+import { getApiUrl, API_ENDPOINTS } from "../config/api";
 
 interface Student {
   username?: string;
@@ -84,7 +85,7 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
 
       if (studentData.easyTimeProId) {
         // Update existing employee using PATCH method with easyTimeProId
-        const response = await fetch(`http://127.0.0.1:3001/api/easytime/update-employee/${studentData.easyTimeProId}`, {
+        const response = await fetch(getApiUrl(`${API_ENDPOINTS.EASYTIME.UPDATE_EMPLOYEE}/${studentData.easyTimeProId}`), {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json'
@@ -107,7 +108,7 @@ const StudentDetails: React.FC<StudentDetailsProps> = ({ department }) => {
         }
       } else {
         // Add new employee if not found
-        const response = await fetch('http://127.0.0.1:3001/api/easytime/add-employee', {
+        const response = await fetch(getApiUrl(API_ENDPOINTS.EASYTIME.ADD_EMPLOYEE), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

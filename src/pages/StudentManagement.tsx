@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { db } from "../lib/firebase";
 import { ref, set, remove, get } from "firebase/database";
+import { getApiUrl, API_ENDPOINTS } from "../config/api";
 
 // Department mapping with IDs for EasyTime Pro (same as StaffManagement)
 const departments = [
@@ -88,7 +89,7 @@ const StudentManagement: React.FC = () => {
       console.log('Full data structure:', JSON.stringify(easyTimeProData, null, 2));
 
       // Add student to EasyTime Pro via backend API
-      const response = await fetch('http://127.0.0.1:3001/api/easytime/add-employee', {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.EASYTIME.ADD_EMPLOYEE), {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
@@ -189,7 +190,7 @@ const StudentManagement: React.FC = () => {
       }
       
       // Remove from EasyTime Pro via backend API using easyTimeProId
-      const response = await fetch(`http://127.0.0.1:3001/api/easytime/delete-employee/${easyTimeProId}`, {
+      const response = await fetch(getApiUrl(`${API_ENDPOINTS.EASYTIME.DELETE_EMPLOYEE}/${easyTimeProId}`), {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json'

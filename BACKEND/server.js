@@ -19,7 +19,14 @@ app.use(cors({
     'http://127.0.0.1:4173',
     'http://192.168.1.2:5173',
     'http://192.168.1.2:3000',
-    'http://192.168.1.2:4173'
+    'http://192.168.1.2:4173',
+    // Railway domains
+    'https://ssec-outing-2-production.up.railway.app',
+    'https://ssec-outing-2.up.railway.app',
+    // Allow all Railway subdomains
+    /^https:\/\/.*\.up\.railway\.app$/,
+    // Allow all Railway custom domains
+    /^https:\/\/.*\.railway\.app$/
   ],
   credentials: true
 }));
@@ -32,7 +39,7 @@ app.get('/', (req, res) => {
   res.send('Backend is running...');
 });
 
-const PORT = 3001; // Force port to be 3001
+const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
 
 // Add error handling
 process.on('uncaughtException', (err) => {

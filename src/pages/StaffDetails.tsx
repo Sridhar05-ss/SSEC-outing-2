@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { db } from "../lib/firebase";
 import { ref, get, update, set } from "firebase/database";
+import { getApiUrl, API_ENDPOINTS } from "../config/api";
 import {
   Dialog,
   DialogTrigger,
@@ -84,7 +85,7 @@ const StaffDetails: React.FC = () => {
 
       if (staffData.easyTimeProId) {
         // Update existing employee using PATCH method with easyTimeProId
-        const response = await fetch(`http://127.0.0.1:3001/api/easytime/update-employee/${staffData.easyTimeProId}`, {
+        const response = await fetch(getApiUrl(`${API_ENDPOINTS.EASYTIME.UPDATE_EMPLOYEE}/${staffData.easyTimeProId}`), {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json'
@@ -104,7 +105,7 @@ const StaffDetails: React.FC = () => {
         }
       } else {
         // Add new employee if not found
-        const response = await fetch('http://127.0.0.1:3001/api/easytime/add-employee', {
+        const response = await fetch(getApiUrl(API_ENDPOINTS.EASYTIME.ADD_EMPLOYEE), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

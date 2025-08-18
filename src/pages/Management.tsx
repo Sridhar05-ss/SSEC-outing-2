@@ -3,6 +3,7 @@ import { UserCircle, LogOut, FileText, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { ref, get } from "firebase/database";
+import { getApiUrl, API_ENDPOINTS } from "../config/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fakeAuth } from "../lib/fakeAuth";
@@ -337,7 +338,7 @@ export default function Management() {
       
       // Fetch transactions from backend (which calls ZKteco API)
       console.log('Fetching transactions from backend...');
-      const response = await fetch('http://127.0.0.1:3001/api/zkteco/transactions');
+      const response = await fetch(getApiUrl(API_ENDPOINTS.ZKTECO.TRANSACTIONS));
       console.log('Backend response status:', response.status);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -813,11 +814,11 @@ export default function Management() {
               console.log('=== TESTING BACKEND CONNECTION ===');
               try {
                 // First test if backend server is running
-                const healthResponse = await fetch('http://127.0.0.1:3001/');
+                const healthResponse = await fetch(getApiUrl(API_ENDPOINTS.HEALTH));
                 console.log('Backend health check status:', healthResponse.status);
                 
                 // Then test the transactions endpoint
-                const response = await fetch('http://127.0.0.1:3001/api/zkteco/transactions');
+                const response = await fetch(getApiUrl(API_ENDPOINTS.ZKTECO.TRANSACTIONS));
                 const result = await response.json();
                 console.log('Backend transactions test result:', result);
               } catch (error) {
