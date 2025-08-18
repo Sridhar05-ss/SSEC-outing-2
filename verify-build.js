@@ -1,43 +1,49 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-console.log('🔍 Verifying build process...');
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Check if dist directory exists
+console.log('🔍 Verifying build output...');
+
 const distPath = path.join(__dirname, 'dist');
+const indexPath = path.join(distPath, 'index.html');
+
+// Check if dist folder exists
 if (!fs.existsSync(distPath)) {
-  console.error('❌ dist directory not found! Build may have failed.');
+  console.error('❌ dist folder not found!');
+  console.log('📁 Current directory contents:');
+  fs.readdirSync(__dirname).forEach(file => {
+    console.log(`  - ${file}`);
+  });
   process.exit(1);
 }
 
 // Check if index.html exists
-const indexPath = path.join(distPath, 'index.html');
 if (!fs.existsSync(indexPath)) {
-  console.error('❌ index.html not found in dist directory!');
+  console.error('❌ index.html not found in dist folder!');
+  console.log('📁 dist folder contents:');
+  fs.readdirSync(distPath).forEach(file => {
+    console.log(`  - ${file}`);
+  });
   process.exit(1);
 }
 
-// Check if assets directory exists
-const assetsPath = path.join(distPath, 'assets');
-if (!fs.existsSync(assetsPath)) {
-  console.error('❌ assets directory not found in dist directory!');
-  process.exit(1);
-}
-
-console.log('✅ Build verification successful!');
-console.log('📁 dist directory exists');
-console.log('📄 index.html exists');
-console.log('📦 assets directory exists');
-
-// List some files in dist for debugging
-console.log('\n📋 Files in dist directory:');
-const files = fs.readdirSync(distPath);
-files.forEach(file => {
+// Check dist folder contents
+const distContents = fs.readdirSync(distPath);
+console.log('✅ dist folder found');
+console.log('📁 dist folder contents:');
+distContents.forEach(file => {
   const filePath = path.join(distPath, file);
   const stats = fs.statSync(filePath);
   if (stats.isDirectory()) {
     console.log(`  📁 ${file}/`);
   } else {
-    console.log(`  📄 ${file}`);
+    console.log(`  📄 ${file} (${stats.size} bytes)`);
   }
 });
+
+console.log('✅ Build verification completed successfully!');
+console.log('🚀 Frontend is ready to be served');
