@@ -57,32 +57,41 @@ The backend is configured to allow requests from:
 1. **Railway will automatically:**
    - Install dependencies (`npm install`)
    - Build the frontend (`npm run build`)
+   - Verify build (`node verify-build.js`)
    - Start the backend server (`npm run start:railway`)
 
 2. **Health Check:**
-   - Railway will check `/` endpoint
+   - Railway will check `/health` endpoint
    - Should return "Backend is running..."
+   - Frontend will be served at `/` endpoint
 
 ### **Step 5: Troubleshooting**
 
 #### **Common Issues:**
 
-1. **CORS Errors:**
+1. **White Screen / "Backend is running" message:**
+   - **Cause**: Backend is serving instead of frontend
+   - **Solution**: Updated server to serve static files from `dist` directory
+   - **Check**: Verify build process completed successfully
+
+2. **CORS Errors:**
    - Ensure your Railway URL is in the CORS configuration
    - Check that `VITE_BACKEND_URL` is set correctly
 
-2. **API Connection Errors:**
+3. **API Connection Errors:**
    - Verify EasyTime Pro is accessible from Railway
    - Check environment variables are set correctly
 
-3. **Build Errors:**
+4. **Build Errors:**
    - Check that all dependencies are in `package.json`
    - Verify TypeScript compilation
+   - Run `npm run build:check` to test build process
 
 ### **Step 6: Testing**
 
 After deployment, test these endpoints:
-- `https://your-app.railway.app/` - Health check
+- `https://your-app.railway.app/` - Frontend application
+- `https://your-app.railway.app/health` - Backend health check
 - `https://your-app.railway.app/api/zkteco/transactions` - Transactions
 - `https://your-app.railway.app/api/easytime/add-employee` - Add employee
 
