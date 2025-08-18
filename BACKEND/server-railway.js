@@ -91,28 +91,31 @@ async function loadExternalDependencies() {
       global.firebaseLoaded = false;
     }
     
-    // Load ZKTeco routes (if available)
-    try {
-      const zktecoRoutes = require('./routes/zktecoRoutes');
-      global.zktecoLoaded = true;
-      console.log('✅ ZKTeco service loaded');
-    } catch (error) {
-      console.warn('⚠️ ZKTeco service not available:', error.message);
-      global.zktecoLoaded = false;
-    }
+         // Load ZKTeco routes (if available)
+     try {
+       // Temporarily disable ZKTeco routes to prevent pathToRegexpError
+       console.log('⚠️ ZKTeco routes temporarily disabled to prevent pathToRegexpError');
+       global.zktecoLoaded = false;
+     } catch (error) {
+       console.warn('⚠️ ZKTeco service not available:', error.message);
+       console.warn('⚠️ ZKTeco error details:', error.stack);
+       global.zktecoLoaded = false;
+     }
+     
+     // Load EasyTime routes (if available)
+     try {
+       // Temporarily disable EasyTime routes to prevent pathToRegexpError
+       console.log('⚠️ EasyTime routes temporarily disabled to prevent pathToRegexpError');
+       global.easytimeLoaded = false;
+     } catch (error) {
+       console.warn('⚠️ EasyTime service not available:', error.message);
+       console.warn('⚠️ EasyTime error details:', error.stack);
+       global.easytimeLoaded = false;
+     }
     
-    // Load EasyTime routes (if available)
-    try {
-      const easytimeRoutes = require('./routes/easytimeRoutes');
-      global.easytimeLoaded = true;
-      console.log('✅ EasyTime service loaded');
-    } catch (error) {
-      console.warn('⚠️ EasyTime service not available:', error.message);
-      global.easytimeLoaded = false;
-    }
-    
-    // Add API routes after dependencies are loaded
-    setupAPIRoutes();
+         // Temporarily disable API routes to prevent pathToRegexpError
+     console.log('⚠️ API routes temporarily disabled to prevent pathToRegexpError');
+     // setupAPIRoutes();
     
     // Serve static files if available
     setupStaticFiles();
@@ -133,9 +136,28 @@ async function loadExternalDependencies() {
 function setupAPIRoutes() {
   try {
     console.log('🔄 Loading API routes...');
-    const router = require('./routes');
+    
+    // Load routes with error handling
+    let router;
+    try {
+      router = require('./routes');
+    } catch (routeError) {
+      console.error('❌ Error requiring routes:', routeError.message);
+      console.error('❌ Route error stack:', routeError.stack);
+      setupBasicRoutes();
+      return;
+    }
+    
+    // Check if router is valid
+    if (!router || typeof router.use !== 'function') {
+      console.error('❌ Invalid router object:', typeof router);
+      setupBasicRoutes();
+      return;
+    }
+    
     app.use('/api', router);
-    console.log('✅ API routes loaded');
+    console.log('✅ API routes loaded successfully');
+    
   } catch (error) {
     console.error('❌ Error loading API routes:', error.message);
     console.error('❌ Error stack:', error.stack);
