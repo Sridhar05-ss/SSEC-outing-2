@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 const router = require('./routes');
 const cors = require('cors');
@@ -36,16 +37,39 @@ app.use(express.json());
 app.use('/api', router);
 
 // Serve static files from the React build directory
-app.use(express.static(path.join(__dirname, '../dist')));
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`✅ Static files directory found: ${distPath}`);
+} else {
+  console.warn(`⚠️ Static files directory not found: ${distPath}`);
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.send('Backend is running...');
+  res.status(200).json({
+    status: 'ok',
+    message: 'Backend is running...',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    distExists: fs.existsSync(distPath)
+  });
 });
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({
+      error: 'Frontend not built',
+      message: 'Please run npm run build first',
+      distExists: fs.existsSync(distPath),
+      indexPath: indexPath
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
@@ -60,7 +84,10 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📁 Serving static files from: ${path.join(__dirname, '../dist')}`);
+  console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🌐 Frontend available at: http://localhost:${PORT}/`);
   console.log('Press Ctrl+C to stop');
 });
 
