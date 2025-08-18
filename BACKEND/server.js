@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv');
 const router = require('./routes');
 const cors = require('cors');
@@ -36,19 +37,99 @@ app.use(express.json());
 app.use('/api', router);
 
 // Serve static files from the React build directory
-app.use(express.static(path.join(__dirname, '../dist')));
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`✅ Static files directory found: ${distPath}`);
+} else {
+  console.warn(`⚠️ Static files directory not found: ${distPath}`);
+}
 
-// Health check endpoint
+const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
+
+// Enhanced health check endpoint
 app.get('/health', (req, res) => {
-  res.send('Backend is running...');
+  res.status(200).json({
+    status: 'ok',
+    message: 'Backend is running...',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    distExists: fs.existsSync(distPath),
+    uptime: process.uptime()
+  });
+});
+
+// Root endpoint for Railway healthcheck
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'SSEC Outing Management API is running',
+    health: '/health'
+  });
 });
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Show a loading page while frontend is building
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SSEC Outing Management - Loading</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              display: flex; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              margin: 0; 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+            }
+            .loading {
+              text-align: center;
+              padding: 2rem;
+              background: rgba(255,255,255,0.1);
+              border-radius: 10px;
+              backdrop-filter: blur(10px);
+            }
+            .spinner {
+              border: 4px solid rgba(255,255,255,0.3);
+              border-top: 4px solid white;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              animation: spin 1s linear infinite;
+              margin: 0 auto 1rem;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="loading">
+            <div class="spinner"></div>
+            <h2>SSEC Outing Management</h2>
+            <p>Frontend is being built, please wait...</p>
+            <p><small>This may take a few minutes on first deployment</small></p>
+            <script>
+              // Auto-refresh every 10 seconds
+              setTimeout(() => window.location.reload(), 10000);
+            </script>
+          </div>
+        </body>
+      </html>
+    `);
+  }
 });
-
-const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
 
 // Add error handling
 process.on('uncaughtException', (err) => {
@@ -60,7 +141,10 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📁 Serving static files from: ${path.join(__dirname, '../dist')}`);
+  console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🌐 Frontend available at: http://localhost:${PORT}/`);
   console.log('Press Ctrl+C to stop');
 });
 
