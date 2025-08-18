@@ -57,14 +57,15 @@ The backend is configured to allow requests from:
 1. **Railway will automatically:**
    - Install dependencies (`npm install`)
    - Run the Railway start script (`node start-railway.js`)
-   - Build frontend and start server in one process
-   - Verify build before starting server
+   - Create pre-build frontend immediately
+   - Start server immediately (health check passes right away)
+   - Build full frontend in background
 
 2. **Health Check:**
    - Railway will check `/health` endpoint
    - Should return JSON with status and build info
-   - Frontend will be served at `/` endpoint
-   - Increased timeout to 300 seconds for build process
+   - Frontend will be served at `/` endpoint (loading page initially)
+   - Reduced timeout to 60 seconds (server starts immediately)
 
 ### **Step 5: Troubleshooting**
 
@@ -72,8 +73,8 @@ The backend is configured to allow requests from:
 
 1. **Health Check Failures:**
    - **Cause**: Build process taking too long or failing
-   - **Solution**: Increased timeout to 300s, improved build process
-   - **Check**: Use dedicated start script with better error handling
+   - **Solution**: Server starts immediately with pre-build frontend
+   - **Check**: Health check passes in under 60 seconds
 
 2. **White Screen / "Backend is running" message:**
    - **Cause**: Backend is serving instead of frontend
