@@ -15,7 +15,7 @@ app.use(cors({
 app.use(express.json());
 
 // Get PORT from Railway environment (CRITICAL for Railway)
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 console.log(`🚀 Starting server on port ${PORT}`);
 console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -73,9 +73,13 @@ async function loadExternalDependencies() {
   
   try {
     // Load dotenv configuration
-    const dotenv = require('dotenv');
-    dotenv.config();
-    console.log('✅ Environment variables loaded');
+    try {
+      const dotenv = require('dotenv');
+      dotenv.config();
+      console.log('✅ Environment variables loaded');
+    } catch (error) {
+      console.warn('⚠️ Environment variables not available:', error.message);
+    }
     
     // Load Firebase (if available)
     try {
@@ -117,33 +121,47 @@ async function loadExternalDependencies() {
     
   } catch (error) {
     console.error('❌ Error loading external dependencies:', error.message);
+    console.error('❌ Error stack:', error.stack);
     console.log('⚠️ Server will continue running with basic functionality');
+    
+    // Still try to setup basic routes
+    setupBasicRoutes();
   }
 }
 
 // Setup API routes with external dependencies
 function setupAPIRoutes() {
   try {
+    console.log('🔄 Loading API routes...');
     const router = require('./routes');
     app.use('/api', router);
     console.log('✅ API routes loaded');
   } catch (error) {
-    console.warn('⚠️ API routes not available:', error.message);
-    
-    // Fallback API endpoints
-    app.get('/api/status', (req, res) => {
-      res.status(200).json({
-        status: 'ok',
-        message: 'API is working (basic mode)',
-        timestamp: new Date().toISOString(),
-        services: {
-          zkteco: global.zktecoLoaded || false,
-          easytime: global.easytimeLoaded || false,
-          firebase: global.firebaseLoaded || false
-        }
-      });
-    });
+    console.error('❌ Error loading API routes:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    setupBasicRoutes();
   }
+}
+
+// Setup basic routes as fallback
+function setupBasicRoutes() {
+  console.log('🔄 Setting up basic API routes...');
+  
+  // Basic API status endpoint
+  app.get('/api/status', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      message: 'API is working (basic mode)',
+      timestamp: new Date().toISOString(),
+      services: {
+        zkteco: global.zktecoLoaded || false,
+        easytime: global.easytimeLoaded || false,
+        firebase: global.firebaseLoaded || false
+      }
+    });
+  });
+  
+  console.log('✅ Basic API routes loaded');
 }
 
 // Setup static files serving
@@ -218,6 +236,7 @@ process.on('SIGTERM', () => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught Exception:', err);
+  console.error('❌ Error stack:', err.stack);
   server.close(() => {
     console.log('✅ Server closed due to uncaught exception');
     process.exit(1);

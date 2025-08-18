@@ -22,18 +22,19 @@ router.use('/zkteco', zktecoRoutes);
 // Add easytime routes under /easytime path
 router.use('/easytime', easytimeRoutes);
 
-// Debug: Log all registered routes
+// Simple route logging without complex parsing
 console.log('Registered routes:');
-router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log(middleware.route.path);
-  } else if (middleware.name === 'router') {
-    middleware.handle.stack.forEach((handler) => {
-      if (handler.route) {
-        console.log(handler.route.path);
-      }
-    });
-  }
-});
+console.log('  GET /sync-attendance');
+console.log('  GET /zkteco/test');
+console.log('  GET /zkteco/transactions');
+console.log('  DELETE /zkteco/cache');
+console.log('  GET /zkteco/cache/stats');
+console.log('  POST /easytime/authenticate');
+console.log('  GET /easytime/transactions');
+console.log('  POST /easytime/add-employee');
+console.log('  DELETE /easytime/delete-employee/:id');
+console.log('  GET /easytime/get-employee/:empCode');
+console.log('  PATCH /easytime/update-employee/:id');
+console.log('  GET /easytime/staff');
 
 module.exports = router;
