@@ -20,22 +20,50 @@ const PORT = process.env.PORT || 3000;
 console.log(`🚀 Starting server on port ${PORT}`);
 console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-// CRITICAL: Root endpoint for Railway health check (responds immediately)
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'SSEC Outing Management API is running',
-    timestamp: new Date().toISOString(),
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime(),
-    services: {
-      zkteco: global.zktecoLoaded || false,
-      easytime: global.easytimeLoaded || false,
-      firebase: global.firebaseLoaded || false
+// Setup static files FIRST (before any routes)
+function setupStaticFiles() {
+  const distPath = path.join(__dirname, '../dist');
+  console.log(`🔍 Checking for static files at: ${distPath}`);
+  
+  if (fs.existsSync(distPath)) {
+    const distContents = fs.readdirSync(distPath);
+    console.log(`✅ Static files directory found: ${distPath}`);
+    console.log(`📁 dist folder contents: ${distContents.join(', ')}`);
+    
+    // Serve static files from dist directory
+    app.use(express.static(distPath));
+    console.log('✅ Static file middleware configured');
+    
+    // Handle React routing - serve index.html for all routes EXCEPT /health and /api
+    app.get('*', (req, res, next) => {
+      // Skip for API routes and health check
+      if (req.path.startsWith('/api') || req.path === '/health') {
+        return next();
+      }
+      
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        console.log(`📄 Serving index.html for route: ${req.path}`);
+        res.sendFile(indexPath);
+      } else {
+        console.warn(`⚠️ index.html not found at: ${indexPath}`);
+        next();
+      }
+    });
+  } else {
+    console.warn(`⚠️ Static files directory not found: ${distPath}`);
+    console.log('📁 Current directory contents:');
+    try {
+      const currentDir = fs.readdirSync(__dirname);
+      currentDir.forEach(file => console.log(`  - ${file}`));
+    } catch (error) {
+      console.error('❌ Error reading current directory:', error.message);
     }
-  });
-});
+  }
+}
+
+// Setup static files immediately
+setupStaticFiles();
 
 // Health check endpoint (Railway requirement)
 app.get('/health', (req, res) => {
@@ -52,6 +80,32 @@ app.get('/health', (req, res) => {
       firebase: global.firebaseLoaded || false
     }
   });
+});
+
+// Root endpoint for Railway health check (responds immediately)
+app.get('/', (req, res) => {
+  // Check if we have static files, if not return JSON
+  const distPath = path.join(__dirname, '../dist');
+  const indexPath = path.join(distPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    console.log(`📄 Serving index.html for root route`);
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({
+      status: 'ok',
+      message: 'SSEC Outing Management API is running',
+      timestamp: new Date().toISOString(),
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      services: {
+        zkteco: global.zktecoLoaded || false,
+        easytime: global.easytimeLoaded || false,
+        firebase: global.firebaseLoaded || false
+      }
+    });
+  }
 });
 
 // Start server immediately for Railway health check
@@ -113,12 +167,9 @@ async function loadExternalDependencies() {
        global.easytimeLoaded = false;
      }
     
-         // Temporarily disable API routes to prevent pathToRegexpError
+              // Temporarily disable API routes to prevent pathToRegexpError
      console.log('⚠️ API routes temporarily disabled to prevent pathToRegexpError');
      // setupAPIRoutes();
-    
-    // Serve static files if available
-    setupStaticFiles();
     
     console.log('🎉 All external dependencies loaded successfully');
     
@@ -184,67 +235,6 @@ function setupBasicRoutes() {
   });
   
   console.log('✅ Basic API routes loaded');
-}
-
-// Setup static files serving
-function setupStaticFiles() {
-  const distPath = path.join(__dirname, '../dist');
-  console.log(`🔍 Checking for static files at: ${distPath}`);
-  
-  if (fs.existsSync(distPath)) {
-    const distContents = fs.readdirSync(distPath);
-    console.log(`✅ Static files directory found: ${distPath}`);
-    console.log(`📁 dist folder contents: ${distContents.join(', ')}`);
-    
-    app.use(express.static(distPath));
-    
-    // Handle React routing
-    app.get('*', (req, res) => {
-      const indexPath = path.join(distPath, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        console.log(`📄 Serving index.html for route: ${req.path}`);
-        res.sendFile(indexPath);
-      } else {
-        console.warn(`⚠️ index.html not found at: ${indexPath}`);
-        res.status(200).json({
-          status: 'ok',
-          message: 'SSEC Outing Management API',
-          availableEndpoints: ['/', '/health', '/api/status'],
-          timestamp: new Date().toISOString(),
-          debug: {
-            distPath,
-            distContents,
-            indexPath,
-            indexPathExists: fs.existsSync(indexPath)
-          }
-        });
-      }
-    });
-  } else {
-    console.warn(`⚠️ Static files directory not found: ${distPath}`);
-    console.log('📁 Current directory contents:');
-    try {
-      const currentDir = fs.readdirSync(__dirname);
-      currentDir.forEach(file => console.log(`  - ${file}`));
-    } catch (error) {
-      console.error('❌ Error reading current directory:', error.message);
-    }
-    
-    // Catch-all route for API-only mode
-    app.get('*', (req, res) => {
-      res.status(200).json({
-        status: 'ok',
-        message: 'SSEC Outing Management API (API-only mode)',
-        availableEndpoints: ['/', '/health', '/api/status'],
-        timestamp: new Date().toISOString(),
-        debug: {
-          distPath,
-          distPathExists: fs.existsSync(distPath),
-          currentDir: __dirname
-        }
-      });
-    });
-  }
 }
 
 // Handle server errors
