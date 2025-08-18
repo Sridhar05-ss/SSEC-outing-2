@@ -47,7 +47,7 @@ if (fs.existsSync(distPath)) {
 
 const PORT = process.env.PORT || 3001; // Use Railway's PORT or default to 3001
 
-// Enhanced health check endpoint
+// Simple health check endpoint (responds immediately)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -140,15 +140,21 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+// Start server with better logging
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📁 Serving static files from: ${path.join(__dirname, '../dist')}`);
   console.log(`🏥 Health check available at: http://localhost:${PORT}/health`);
   console.log(`🌐 Frontend available at: http://localhost:${PORT}/`);
+  console.log('✅ Server is ready to accept connections');
   console.log('Press Ctrl+C to stop');
 });
 
 // Handle server errors
 server.on('error', (err) => {
   console.error('Server error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+    process.exit(1);
+  }
 });
