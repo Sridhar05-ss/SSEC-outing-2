@@ -8,7 +8,7 @@ const app = express();
 // Get PORT from Railway environment (CRITICAL for Railway)
 const PORT = process.env.PORT || 3000;
 
-console.log(`🚀 Starting server on port ${PORT}`);
+console.log(`🚀 Starting Railway server on port ${PORT}`);
 console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 // CRITICAL: Health check endpoint FIRST (before any middleware)
@@ -141,31 +141,31 @@ async function loadExternalDependencies() {
       global.firebaseLoaded = false;
     }
     
-         // Load ZKTeco routes (if available)
-     try {
-       // Temporarily disable ZKTeco routes to prevent pathToRegexpError
-       console.log('⚠️ ZKTeco routes temporarily disabled to prevent pathToRegexpError');
-       global.zktecoLoaded = false;
-     } catch (error) {
-       console.warn('⚠️ ZKTeco service not available:', error.message);
-       console.warn('⚠️ ZKTeco error details:', error.stack);
-       global.zktecoLoaded = false;
-     }
-     
-     // Load EasyTime routes (if available)
-     try {
-       // Temporarily disable EasyTime routes to prevent pathToRegexpError
-       console.log('⚠️ EasyTime routes temporarily disabled to prevent pathToRegexpError');
-       global.easytimeLoaded = false;
-     } catch (error) {
-       console.warn('⚠️ EasyTime service not available:', error.message);
-       console.warn('⚠️ EasyTime error details:', error.stack);
-       global.easytimeLoaded = false;
-     }
+    // Load ZKTeco routes (if available)
+    try {
+      // Temporarily disable ZKTeco routes to prevent pathToRegexpError
+      console.log('⚠️ ZKTeco routes temporarily disabled to prevent pathToRegexpError');
+      global.zktecoLoaded = false;
+    } catch (error) {
+      console.warn('⚠️ ZKTeco service not available:', error.message);
+      console.warn('⚠️ ZKTeco error details:', error.stack);
+      global.zktecoLoaded = false;
+    }
     
-              // Temporarily disable API routes to prevent pathToRegexpError
-     console.log('⚠️ API routes temporarily disabled to prevent pathToRegexpError');
-     // setupAPIRoutes();
+    // Load EasyTime routes (if available)
+    try {
+      // Temporarily disable EasyTime routes to prevent pathToRegexpError
+      console.log('⚠️ EasyTime routes temporarily disabled to prevent pathToRegexpError');
+      global.easytimeLoaded = false;
+    } catch (error) {
+      console.warn('⚠️ EasyTime service not available:', error.message);
+      console.warn('⚠️ EasyTime error details:', error.stack);
+      global.easytimeLoaded = false;
+    }
+    
+    // Temporarily disable API routes to prevent pathToRegexpError
+    console.log('⚠️ API routes temporarily disabled to prevent pathToRegexpError');
+    // setupAPIRoutes();
     
     console.log('🎉 All external dependencies loaded successfully');
     

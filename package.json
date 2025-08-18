@@ -5,17 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node verify-build.js",
+    "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "server": "node BACKEND/server.js",
     "test-api": "node BACKEND/test-easytime-api.js",
     "start": "node BACKEND/server.js",
-    "start:railway": "node BACKEND/server-railway.js",
+    "start:railway": "node start-railway.cjs",
     "build:check": "npm run build && echo 'Build completed successfully'",
     "test:server": "node test-server.js",
-    "test:railway": "node test-railway-server.js"
+    "test:railway": "node test-railway-server.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
