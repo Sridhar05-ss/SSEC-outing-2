@@ -1,0 +1,10 @@
+[33m382a672[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add EasyTime Pro URL and correct Railway domain to CORS configuration
+[33m500b13b[m Fix Railway deployment - use existing backend server with correct structure
+[33mc9d6c51[m Fix Railway deployment - resolve health check failures and module issues
+[33m18b6b52[m Fix health check by moving /health endpoint before middleware and updating Railway config
+[33mce67a08[m Fix Railway health check by changing healthcheckPath from / to /health
+[33mc6ddc7e[m Fix static file serving - now serves React app instead of JSON response
+[33m7339a28[m Fix pathToRegexpError by temporarily disabling problematic routes and improve error handling
+[33mdfa9eea[m feat: no FE error
+[33mc3fc043[m feat: ext dep error
+[33m8f8222b[m feat:healthissue 2

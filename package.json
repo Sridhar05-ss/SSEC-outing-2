@@ -11,8 +11,8 @@
     "preview": "vite preview",
     "server": "node BACKEND/server.js",
     "test-api": "node BACKEND/test-easytime-api.js",
-    "start": "node BACKEND/server.js",
-    "start:railway": "node BACKEND/server.js",
+    "start": "node BACKEND/server-railway-simple.js",
+    "start:railway": "node BACKEND/server-railway-simple.js",
     "build:check": "npm run build && echo 'Build completed successfully'",
     "test:server": "node test-server.js",
     "test:railway": "node test-railway-server.cjs"
