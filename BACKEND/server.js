@@ -21,9 +21,13 @@ app.use(cors({
     'http://192.168.1.2:5173',
     'http://192.168.1.2:3000',
     'http://192.168.1.2:4173',
+    // EasyTime Pro URL
+    'http://127.0.0.1:8081',
+    'http://localhost:8081',
     // Railway domains
     'https://ssec-outing-2-production.up.railway.app',
     'https://ssec-outing-2.up.railway.app',
+    'https://ssec-outing-2-production-3915.up.railway.app',
     // Allow all Railway subdomains
     /^https:\/\/.*\.up\.railway\.app$/,
     // Allow all Railway custom domains
